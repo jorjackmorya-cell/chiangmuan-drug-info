@@ -37,8 +37,11 @@
   .drug-item .indication-preview{font-size:13px;color:var(--ink-soft);margin-top:4px;}
   .drug-detail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:14px;line-height:1.7;}
   .drug-detail.open{display:block;}
-  .drug-detail b{color:var(--teal-deep);}
-  .drug-detail .field{margin-bottom:8px;}
+  .detail-section{margin-bottom:16px;}
+  .detail-section h5{margin:0 0 6px;font-size:13.5px;color:var(--teal-deep);display:flex;align-items:center;gap:7px;}
+  .detail-section h5 .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--teal-soft);color:var(--teal-deep);font-size:11px;font-weight:700;flex-shrink:0;}
+  .detail-section p{margin:0;font-size:13.5px;color:var(--ink);line-height:1.7;padding-left:27px;}
+  .detail-section p.empty{color:var(--ink-faint,#93A398);font-style:italic;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
   .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:32px;}
   .info-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;position:relative;}
@@ -146,11 +149,21 @@
     <div class="edit-form">
       <label>ชื่อยา</label><input type="text" id="ed-name">
       <label>ความแรง/รูปแบบ</label><input type="text" id="ed-strength">
-      <label>ข้อบ่งใช้</label><textarea id="ed-indication"></textarea>
-      <label>ขนาดยา/วิธีบริหาร</label><textarea id="ed-dose"></textarea>
-      <label>วิธีให้ยา (route)</label><input type="text" id="ed-route">
-      <label>การติดตาม</label><textarea id="ed-monitoring"></textarea>
-      <label>ข้อแนะนำ</label><textarea id="ed-recommendation"></textarea>
+      <label>1. ข้อบ่งใช้ทั่วไป</label><textarea id="ed-indicationGeneral"></textarea>
+      <label>2. ขนาดยาในผู้ใหญ่</label><textarea id="ed-doseAdult"></textarea>
+      <label>3. ขนาดยาในเด็ก</label><textarea id="ed-dosePediatric"></textarea>
+      <label>4. การปรับขนาดยาในผู้ป่วยโรคไต</label><textarea id="ed-renalAdjustment"></textarea>
+      <label>5. วิธีการจ่ายยา</label><textarea id="ed-administration"></textarea>
+      <label>6. คำแนะนำการใช้ยาสำหรับผู้ป่วย</label><textarea id="ed-patientCounseling"></textarea>
+      <label>7. ความปลอดภัยในการใช้ยา</label><textarea id="ed-safetyNotes"></textarea>
+      <label>8. อาการไม่พึงประสงค์ที่สำคัญ</label><textarea id="ed-adverseEffects"></textarea>
+      <label>9. ข้อห้ามใช้และข้อควรระวัง</label><textarea id="ed-contraindications"></textarea>
+      <label>10. การเก็บรักษา</label><textarea id="ed-storage"></textarea>
+      <label>11. ความคลาดเคลื่อนทางยาที่พบบ่อย</label><textarea id="ed-commonErrors"></textarea>
+      <label>12. เกร็ดความรู้สำหรับห้องฉุกเฉิน</label><textarea id="ed-erTips"></textarea>
+      <label>13. บันทึกจากเภสัชกร</label><textarea id="ed-pharmacistNotes"></textarea>
+      <label>14. รายการตรวจสอบก่อนจ่ายยา</label><textarea id="ed-preDispenseChecklist"></textarea>
+      <label>15. เอกสารอ้างอิง</label><textarea id="ed-references"></textarea>
     </div>
     <div class="modal-msg" id="edit-msg"></div>
     <div style="display:flex;gap:8px;margin-top:14px;">
@@ -246,6 +259,24 @@ async function loadDrugs(){
   }
 }
 
+const SECTIONS = [
+  ['indicationGeneral', 'ข้อบ่งใช้ทั่วไป'],
+  ['doseAdult', 'ขนาดยาในผู้ใหญ่'],
+  ['dosePediatric', 'ขนาดยาในเด็ก'],
+  ['renalAdjustment', 'การปรับขนาดยาในผู้ป่วยโรคไต'],
+  ['administration', 'วิธีการจ่ายยา'],
+  ['patientCounseling', 'คำแนะนำการใช้ยาสำหรับผู้ป่วย'],
+  ['safetyNotes', 'ความปลอดภัยในการใช้ยา'],
+  ['adverseEffects', 'อาการไม่พึงประสงค์ที่สำคัญ'],
+  ['contraindications', 'ข้อห้ามใช้และข้อควรระวัง'],
+  ['storage', 'การเก็บรักษา'],
+  ['commonErrors', 'ความคลาดเคลื่อนทางยาที่พบบ่อย'],
+  ['erTips', 'เกร็ดความรู้สำหรับห้องฉุกเฉิน'],
+  ['pharmacistNotes', 'บันทึกจากเภสัชกร'],
+  ['preDispenseChecklist', 'รายการตรวจสอบก่อนจ่ายยา'],
+  ['references', 'เอกสารอ้างอิง']
+];
+
 function renderResults(term){
   const container = document.getElementById('drug-results');
   const emptyEl = document.getElementById('empty-state');
@@ -259,16 +290,16 @@ function renderResults(term){
       <div class="row1">
         <div>
           <h3>${escapeHtml(d.name)} <span class="strength">${escapeHtml(d.strength||'')}</span></h3>
-          <div class="indication-preview">${escapeHtml((d.indication||'').slice(0,80))}${(d.indication||'').length>80?'…':''}</div>
+          <div class="indication-preview">${escapeHtml((d.indicationGeneral||'').slice(0,80))}${(d.indicationGeneral||'').length>80?'…':''}</div>
         </div>
         ${getAuth() ? `<button class="ghost edit-btn" data-id="${escapeHtml(d.id)}">แก้ไข</button>` : ''}
       </div>
       <div class="drug-detail" id="detail-${escapeHtml(d.id)}">
-        <div class="field"><b>ข้อบ่งใช้:</b> ${escapeHtml(d.indication||'-')}</div>
-        <div class="field"><b>ขนาดยา/วิธีบริหาร:</b> ${escapeHtml(d.dose||'-')}</div>
-        ${d.route ? `<div class="field"><b>วิธีให้ยา:</b> ${escapeHtml(d.route)}</div>` : ''}
-        <div class="field"><b>การติดตาม:</b> ${escapeHtml(d.monitoring||'-')}</div>
-        <div class="field"><b>ข้อแนะนำ:</b> ${escapeHtml(d.recommendation||'-')}</div>
+        ${SECTIONS.map((s,i)=>{
+          const val = d[s[0]];
+          return `<div class="detail-section"><h5><span class="num">${i+1}</span>${escapeHtml(s[1])}</h5>
+            <p${val?'':' class="empty"'}>${val ? escapeHtml(val) : 'ยังไม่มีข้อมูล'}</p></div>`;
+        }).join('')}
       </div>
     </div>`).join('');
   container.querySelectorAll('.drug-item').forEach(item=>{
@@ -293,11 +324,9 @@ function openEdit(id){
   document.getElementById('edit-title').textContent = id ? 'แก้ไขข้อมูลยา' : 'เพิ่มข้อมูลยาใหม่';
   document.getElementById('ed-name').value = d ? d.name||'' : '';
   document.getElementById('ed-strength').value = d ? d.strength||'' : '';
-  document.getElementById('ed-indication').value = d ? d.indication||'' : '';
-  document.getElementById('ed-dose').value = d ? d.dose||'' : '';
-  document.getElementById('ed-route').value = d ? d.route||'' : '';
-  document.getElementById('ed-monitoring').value = d ? d.monitoring||'' : '';
-  document.getElementById('ed-recommendation').value = d ? d.recommendation||'' : '';
+  SECTIONS.forEach(s=>{
+    document.getElementById('ed-'+s[0]).value = d ? (d[s[0]]||'') : '';
+  });
   document.getElementById('edit-msg').textContent = '';
   document.getElementById('edit-delete').style.display = id ? 'block' : 'none';
   document.getElementById('edit-overlay').classList.add('show');
@@ -313,13 +342,11 @@ document.getElementById('edit-save').addEventListener('click', async ()=>{
   const entry = {
     id: editingId || undefined,
     name,
-    strength: document.getElementById('ed-strength').value.trim(),
-    indication: document.getElementById('ed-indication').value.trim(),
-    dose: document.getElementById('ed-dose').value.trim(),
-    route: document.getElementById('ed-route').value.trim(),
-    monitoring: document.getElementById('ed-monitoring').value.trim(),
-    recommendation: document.getElementById('ed-recommendation').value.trim()
+    strength: document.getElementById('ed-strength').value.trim()
   };
+  SECTIONS.forEach(s=>{
+    entry[s[0]] = document.getElementById('ed-'+s[0]).value.trim();
+  });
   const btn = document.getElementById('edit-save');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   try{
