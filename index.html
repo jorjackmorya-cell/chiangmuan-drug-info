@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ศูนย์ข้อมูลยา — รพ.เชียงม่วน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#20302E; --ink-soft:#4B615D; --paper:#F0F3EF; --card:#FFFFFF; --line:#D8E1DC;
+    --teal:#0F4C4C; --teal-deep:#0A3838; --teal-soft:#E4EEEC;
+    --amber:#C97B3D; --amber-soft:#F6E8D8;
+    --danger:#B5473A; --danger-soft:#F5E1DE;
+    --good:#3D7A5E; --good-soft:#DEEBE3;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Sarabun',sans-serif;background:var(--paper);color:var(--ink);}
+  .app{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  .org-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .eyebrow{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);font-weight:600;margin-bottom:4px;}
+  h1{font-size:27px;font-weight:700;margin:0;color:var(--teal-deep);}
+  .auth-box{text-align:right;font-size:13px;}
+  .auth-box a{color:var(--teal);text-decoration:none;font-weight:600;}
+  .staff-link{display:inline-flex;align-items:center;gap:5px;background:var(--teal-soft);color:var(--teal-deep);padding:7px 14px;border-radius:20px;text-decoration:none;font-size:13px;font-weight:600;margin-top:6px;}
+  .search-wrap{margin-bottom:24px;}
+  .search-input{width:100%;padding:16px 20px;font-size:17px;border:2px solid var(--line);border-radius:14px;font-family:inherit;background:#fff;}
+  .search-input:focus{outline:none;border-color:var(--teal);}
+  .search-hint{font-size:12.5px;color:var(--ink-soft);margin-top:6px;}
+  .drug-results{display:flex;flex-direction:column;gap:10px;}
+  .drug-item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;cursor:pointer;}
+  .drug-item .row1{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .drug-item h3{margin:0;font-size:16px;color:var(--teal-deep);}
+  .drug-item .strength{font-size:13px;color:var(--ink-soft);}
+  .drug-item .indication-preview{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .drug-detail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:14px;line-height:1.7;}
+  .drug-detail.open{display:block;}
+  .drug-detail b{color:var(--teal-deep);}
+  .drug-detail .field{margin-bottom:8px;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:32px;}
+  .info-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;position:relative;}
+  .info-card.pending{opacity:.6;}
+  .info-card.live{cursor:pointer;border-color:var(--teal);}
+  .info-card.live:hover{box-shadow:0 6px 18px -4px rgba(15,76,76,.18);transform:translateY(-2px);}
+  .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);text-decoration:none;font-size:13.5px;font-weight:600;margin-bottom:16px;}
+  .info-card .icon{font-size:26px;margin-bottom:10px;}
+  .info-card h4{margin:0 0 6px;font-size:15px;color:var(--teal-deep);}
+  .info-card p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+  .soon-tag{position:absolute;top:14px;right:14px;font-size:10.5px;background:var(--amber-soft);color:var(--amber);padding:2px 8px;border-radius:10px;font-weight:600;}
+  .admin-bar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);padding:8px 16px;border-radius:7px;font-family:inherit;font-size:13.5px;cursor:pointer;}
+  button.ghost:hover{border-color:var(--teal);color:var(--teal-deep);}
+  button.primary{background:var(--teal);color:#fff;border:none;padding:9px 20px;border-radius:7px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,30,28,.5);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:14px;padding:28px;max-width:420px;width:100%;}
+  .modal h3{margin:0 0 14px;font-size:17px;color:var(--teal-deep);}
+  .modal input{width:100%;text-align:center;letter-spacing:8px;font-size:22px;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;margin-bottom:10px;}
+  .modal-msg{font-size:12.5px;color:var(--danger);min-height:16px;margin-bottom:8px;}
+  .edit-form label{display:block;font-size:12.5px;color:var(--ink-soft);margin:10px 0 4px;font-weight:500;}
+  .edit-form input, .edit-form textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:14px;}
+  .edit-form textarea{min-height:60px;resize:vertical;}
+  .edit-modal{max-width:560px;max-height:85vh;overflow-y:auto;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="org-line">กลุ่มงานเภสัชกรรมและคุ้มครองผู้บริโภค โรงพยาบาลเชียงม่วน</div>
+      <h1>💊 ศูนย์ข้อมูลยา</h1>
+    </div>
+    <div class="auth-box" id="auth-box">
+      <a href="#" id="staff-login-link">เจ้าหน้าที่ห้องยา: เข้าสู่ระบบ</a>
+    </div>
+  </header>
+
+  <div id="view-landing">
+    <div class="cards-grid">
+      <div class="info-card live" id="card-druginfo">
+        <div class="icon">🔍</div>
+        <h4>ข้อมูลยา</h4>
+        <p>ค้นหาข้อมูลยาโดยชื่อยา — ข้อบ่งใช้ ขนาดยา วิธีใช้ การติดตาม และข้อแนะนำ</p>
+      </div>
+      <div class="info-card pending">
+        <div class="icon">👶</div>
+        <h4>ขนาดยาเด็ก</h4>
+        <p>ตารางขนาดยาสำหรับผู้ป่วยเด็กตามรายการยา รพ.</p>
+        <span class="soon-tag">เร็วๆ นี้</span>
+      </div>
+      <div class="info-card pending">
+        <div class="icon">🫘</div>
+        <h4>ปรับขนาดยาตามไต</h4>
+        <p>ตารางปรับขนาดยาตามค่า eGFR/CrCl</p>
+        <span class="soon-tag">เร็วๆ นี้</span>
+      </div>
+      <div class="info-card pending">
+        <div class="icon">⚠️</div>
+        <h4>แนวทาง/คู่มือ HAD</h4>
+        <p>คู่มือการใช้ยาที่มีความเสี่ยงสูง 21 รายการ</p>
+        <span class="soon-tag">เร็วๆ นี้</span>
+      </div>
+      <div class="info-card pending">
+        <div class="icon">📋</div>
+        <h4>ใบ DUE</h4>
+        <p>แบบฟอร์มขอใช้ยาที่ต้องประเมิน (ต้อง login)</p>
+        <span class="soon-tag">เร็วๆ นี้</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-druginfo" style="display:none;">
+    <a href="#" class="back-link" id="back-to-landing">← กลับหน้ารวม</a>
+    <div class="search-wrap">
+      <input type="text" class="search-input" id="search-input" placeholder="🔍 พิมพ์ชื่อยาที่ต้องการค้นหา...">
+      <div class="search-hint" id="search-hint">พิมพ์ชื่อยาเพื่อค้นหา — ตอนนี้มีข้อมูลยาในระบบ <span id="drug-count">…</span> รายการ</div>
+    </div>
+    <div class="admin-bar" id="admin-bar" style="display:none;">
+      <button class="primary" id="btn-add-drug">+ เพิ่มข้อมูลยาใหม่</button>
+    </div>
+    <div class="drug-results" id="drug-results"></div>
+    <div class="empty-state" id="empty-state" style="display:none;">ไม่พบยาที่ค้นหา</div>
+  </div>
+</div>
+
+<!-- Login modal -->
+<div class="modal-overlay" id="login-overlay">
+  <div class="modal">
+    <h3>🔒 เข้าสู่ระบบเจ้าหน้าที่ห้องยา</h3>
+    <input type="text" id="login-code" maxlength="6" inputmode="numeric" placeholder="------">
+    <div class="modal-msg" id="login-msg"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="ghost" id="login-cancel" style="flex:1;">ยกเลิก</button>
+      <button class="primary" id="login-submit" style="flex:1;">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit drug modal -->
+<div class="modal-overlay" id="edit-overlay">
+  <div class="modal edit-modal">
+    <h3 id="edit-title">เพิ่มข้อมูลยา</h3>
+    <div class="edit-form">
+      <label>ชื่อยา</label><input type="text" id="ed-name">
+      <label>ความแรง/รูปแบบ</label><input type="text" id="ed-strength">
+      <label>ข้อบ่งใช้</label><textarea id="ed-indication"></textarea>
+      <label>ขนาดยา/วิธีบริหาร</label><textarea id="ed-dose"></textarea>
+      <label>วิธีให้ยา (route)</label><input type="text" id="ed-route">
+      <label>การติดตาม</label><textarea id="ed-monitoring"></textarea>
+      <label>ข้อแนะนำ</label><textarea id="ed-recommendation"></textarea>
+    </div>
+    <div class="modal-msg" id="edit-msg"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="ghost" id="edit-delete" style="color:var(--danger);border-color:var(--danger);">ลบ</button>
+      <button class="ghost" id="edit-cancel" style="flex:1;">ยกเลิก</button>
+      <button class="primary" id="edit-save" style="flex:1;">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyToHBwKzpSEjNvuZdjWvUrqMcOeIlwRRlA0iVoBh1xzdRVCSlMKXnY_MqBz0HhGEqtRg/exec';
+const HUB_URL = 'https://jorjackmorya-cell.github.io/pharmacy-quality-hub/';
+const AUTH_KEY = 'dic-auth-v1';
+const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+let allDrugs = [];
+let editingId = null;
+
+function getAuth(){
+  let auth;
+  try{ auth = JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch(e){ return null; }
+  if(!auth) return null;
+  if(!auth.at || (Date.now()-auth.at) > SESSION_MAX_AGE_MS){ sessionStorage.removeItem(AUTH_KEY); return null; }
+  return auth;
+}
+function setAuth(code, name){
+  sessionStorage.setItem(AUTH_KEY, JSON.stringify({code, name, at: Date.now()}));
+}
+function clearAuth(){ sessionStorage.removeItem(AUTH_KEY); }
+
+function refreshAuthUI(){
+  const auth = getAuth();
+  const authBox = document.getElementById('auth-box');
+  const adminBar = document.getElementById('admin-bar');
+  if(auth){
+    authBox.innerHTML = `
+      <div>เจ้าหน้าที่: <b>${escapeHtml(auth.name)}</b> · <a href="#" id="logout-link">ออกจากระบบ</a></div>
+      <a class="staff-link" href="${HUB_URL}" target="_blank">→ หน้ารวมเครื่องมือ</a>`;
+    document.getElementById('logout-link').addEventListener('click', (e)=>{ e.preventDefault(); clearAuth(); refreshAuthUI(); });
+    adminBar.style.display = 'flex';
+  } else {
+    authBox.innerHTML = `<a href="#" id="staff-login-link">เจ้าหน้าที่ห้องยา: เข้าสู่ระบบ</a>`;
+    document.getElementById('staff-login-link').addEventListener('click', (e)=>{ e.preventDefault(); openLogin(); });
+    adminBar.style.display = 'none';
+  }
+}
+
+function openLogin(){
+  document.getElementById('login-overlay').classList.add('show');
+  document.getElementById('login-code').value='';
+  document.getElementById('login-msg').textContent='';
+  setTimeout(()=>document.getElementById('login-code').focus(), 50);
+}
+function closeLogin(){ document.getElementById('login-overlay').classList.remove('show'); }
+document.getElementById('login-cancel').addEventListener('click', closeLogin);
+document.getElementById('login-code').addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/[^0-9]/g,''); });
+document.getElementById('login-code').addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitLogin(); });
+document.getElementById('login-submit').addEventListener('click', submitLogin);
+
+async function submitLogin(){
+  const code = document.getElementById('login-code').value.trim();
+  const msg = document.getElementById('login-msg');
+  if(code.length !== 6){ msg.textContent = 'กรุณากรอกรหัส 6 หลัก'; return; }
+  const btn = document.getElementById('login-submit');
+  btn.disabled = true; btn.textContent='กำลังตรวจสอบ...';
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verifyCode', code})});
+    const data = await res.json();
+    if(data.ok && data.valid){
+      setAuth(code, data.name);
+      closeLogin();
+      refreshAuthUI();
+    } else {
+      msg.textContent = 'รหัสไม่ถูกต้อง หรือยังไม่ได้รับสิทธิ์';
+    }
+  }catch(e){
+    msg.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง';
+  }
+  btn.disabled = false; btn.textContent='เข้าสู่ระบบ';
+}
+
+// ---- load + search ----
+async function loadDrugs(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    allDrugs = data.drugs || [];
+    document.getElementById('drug-count').textContent = allDrugs.length;
+    renderResults('');
+  }catch(e){
+    document.getElementById('search-hint').textContent = 'โหลดข้อมูลไม่สำเร็จ: '+e.message;
+  }
+}
+
+function renderResults(term){
+  const container = document.getElementById('drug-results');
+  const emptyEl = document.getElementById('empty-state');
+  const t = term.trim().toLowerCase();
+  const matches = t ? allDrugs.filter(d => (d.name||'').toLowerCase().includes(t)) : [];
+  if(!t){ container.innerHTML=''; emptyEl.style.display='none'; return; }
+  if(!matches.length){ container.innerHTML=''; emptyEl.style.display='block'; return; }
+  emptyEl.style.display='none';
+  container.innerHTML = matches.map(d => `
+    <div class="drug-item" data-id="${escapeHtml(d.id)}">
+      <div class="row1">
+        <div>
+          <h3>${escapeHtml(d.name)} <span class="strength">${escapeHtml(d.strength||'')}</span></h3>
+          <div class="indication-preview">${escapeHtml((d.indication||'').slice(0,80))}${(d.indication||'').length>80?'…':''}</div>
+        </div>
+        ${getAuth() ? `<button class="ghost edit-btn" data-id="${escapeHtml(d.id)}">แก้ไข</button>` : ''}
+      </div>
+      <div class="drug-detail" id="detail-${escapeHtml(d.id)}">
+        <div class="field"><b>ข้อบ่งใช้:</b> ${escapeHtml(d.indication||'-')}</div>
+        <div class="field"><b>ขนาดยา/วิธีบริหาร:</b> ${escapeHtml(d.dose||'-')}</div>
+        ${d.route ? `<div class="field"><b>วิธีให้ยา:</b> ${escapeHtml(d.route)}</div>` : ''}
+        <div class="field"><b>การติดตาม:</b> ${escapeHtml(d.monitoring||'-')}</div>
+        <div class="field"><b>ข้อแนะนำ:</b> ${escapeHtml(d.recommendation||'-')}</div>
+      </div>
+    </div>`).join('');
+  container.querySelectorAll('.drug-item').forEach(item=>{
+    item.querySelector('.row1').addEventListener('click', (e)=>{
+      if(e.target.closest('.edit-btn')) return;
+      document.getElementById('detail-'+item.dataset.id).classList.toggle('open');
+    });
+  });
+  container.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); openEdit(btn.dataset.id); });
+  });
+}
+
+document.getElementById('search-input').addEventListener('input', (e)=> renderResults(e.target.value));
+
+// ---- add/edit/delete drug ----
+function openEdit(id){
+  const auth = getAuth();
+  if(!auth){ openLogin(); return; }
+  editingId = id || null;
+  const d = id ? allDrugs.find(x=>x.id===id) : null;
+  document.getElementById('edit-title').textContent = id ? 'แก้ไขข้อมูลยา' : 'เพิ่มข้อมูลยาใหม่';
+  document.getElementById('ed-name').value = d ? d.name||'' : '';
+  document.getElementById('ed-strength').value = d ? d.strength||'' : '';
+  document.getElementById('ed-indication').value = d ? d.indication||'' : '';
+  document.getElementById('ed-dose').value = d ? d.dose||'' : '';
+  document.getElementById('ed-route').value = d ? d.route||'' : '';
+  document.getElementById('ed-monitoring').value = d ? d.monitoring||'' : '';
+  document.getElementById('ed-recommendation').value = d ? d.recommendation||'' : '';
+  document.getElementById('edit-msg').textContent = '';
+  document.getElementById('edit-delete').style.display = id ? 'block' : 'none';
+  document.getElementById('edit-overlay').classList.add('show');
+}
+document.getElementById('btn-add-drug').addEventListener('click', ()=> openEdit(null));
+document.getElementById('edit-cancel').addEventListener('click', ()=> document.getElementById('edit-overlay').classList.remove('show'));
+
+document.getElementById('edit-save').addEventListener('click', async ()=>{
+  const auth = getAuth();
+  if(!auth){ openLogin(); return; }
+  const name = document.getElementById('ed-name').value.trim();
+  if(!name){ document.getElementById('edit-msg').textContent = 'กรุณากรอกชื่อยา'; return; }
+  const entry = {
+    id: editingId || undefined,
+    name,
+    strength: document.getElementById('ed-strength').value.trim(),
+    indication: document.getElementById('ed-indication').value.trim(),
+    dose: document.getElementById('ed-dose').value.trim(),
+    route: document.getElementById('ed-route').value.trim(),
+    monitoring: document.getElementById('ed-monitoring').value.trim(),
+    recommendation: document.getElementById('ed-recommendation').value.trim()
+  };
+  const btn = document.getElementById('edit-save');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveDrug', code: auth.code, entry})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    document.getElementById('edit-overlay').classList.remove('show');
+    await loadDrugs();
+    renderResults(document.getElementById('search-input').value);
+  }catch(e){
+    document.getElementById('edit-msg').textContent = 'บันทึกไม่สำเร็จ: '+e.message;
+  }
+  btn.disabled = false; btn.textContent = 'บันทึก';
+});
+
+document.getElementById('edit-delete').addEventListener('click', async ()=>{
+  const auth = getAuth();
+  if(!auth || !editingId) return;
+  if(!confirm('ยืนยันลบข้อมูลยานี้?')) return;
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'deleteDrug', code: auth.code, id: editingId})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    document.getElementById('edit-overlay').classList.remove('show');
+    await loadDrugs();
+    renderResults(document.getElementById('search-input').value);
+  }catch(e){
+    document.getElementById('edit-msg').textContent = 'ลบไม่สำเร็จ: '+e.message;
+  }
+});
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---- view toggling ----
+function showDrugInfoView(){
+  document.getElementById('view-landing').style.display = 'none';
+  document.getElementById('view-druginfo').style.display = 'block';
+  window.scrollTo(0,0);
+}
+function showLandingView(){
+  document.getElementById('view-landing').style.display = 'block';
+  document.getElementById('view-druginfo').style.display = 'none';
+  window.scrollTo(0,0);
+}
+document.getElementById('card-druginfo').addEventListener('click', showDrugInfoView);
+document.getElementById('back-to-landing').addEventListener('click', (e)=>{ e.preventDefault(); showLandingView(); });
+
+refreshAuthUI();
+loadDrugs();
+</script>
+</body>
+</html>
