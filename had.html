@@ -270,8 +270,11 @@
       <hr style="margin:16px 0;border:none;border-top:1px solid var(--line);">
       <div class="info-banner" style="margin-bottom:0;">⚙️ ตั้งค่าตารางติดตามสด (ใช้ในแท็บ "ติดตามการให้ยา")</div>
       <label>ช่วงเวลาติดตามเริ่มต้น (นาทีหลังเริ่มยา คั่นด้วยจุลภาค)</label><input type="text" id="ed-checkpointMinutes" placeholder="0,15,30,45,60">
-      <label>ติดตามต่อเนื่องทุกกี่นาทีหลังจากนั้น (เว้นว่างถ้าไม่มี)</label><input type="text" id="ed-recurrenceMinutes" placeholder="เช่น 240 = ทุก 4 ชม.">
-      <label>ตัวอย่างหน่วยขนาดยาของยานี้ (โชว์เป็น placeholder ในฟอร์มติดตาม)</label><input type="text" id="ed-doseUnitHint" placeholder="เช่น 40 mEq/hr หรือ 0.1 mcg/kg/min">
+      <label>ติดตามต่อเนื่องทุกกี่นาทีหลังจากนั้น (Vital Sign, เว้นว่างถ้าไม่มี)</label><input type="text" id="ed-recurrenceMinutes" placeholder="เช่น 120 = ทุก 2 ชม.">
+      <label>หน่วยขนาดยาของยานี้ (สั้นๆ เช่น mEq/hr — จะต่อท้ายตัวเลขที่พยาบาลกรอกอัตโนมัติ)</label><input type="text" id="ed-doseUnitHint" placeholder="เช่น mEq/hr หรือ mcg/kg/min">
+      <label>ช่องกรอกชุดที่ 2 — ความถี่แยกต่างหาก (เช่น I/O) คั่นด้วยจุลภาค</label><input type="text" id="ed-secondaryFields" placeholder="เช่น io,note">
+      <label>ความถี่ของชุดที่ 2 (นาที เช่น 480 = ทุก 8 ชม.)</label><input type="text" id="ed-secondaryRecurrenceMinutes" placeholder="เช่น 480 = ทุก 8 ชม.">
+      <div class="field-lib-chips" id="field-lib-chips-secondary"></div>
       <label>ช่องกรอกที่ใช้ในตารางติดตาม (คีย์คั่นด้วยจุลภาค — คลิกด้านล่างเพื่อเพิ่ม)</label>
       <input type="text" id="ed-monitoringFields" placeholder="bp,hr,rr,o2sat,temp,other,note">
       <div class="field-lib-chips" id="field-lib-chips"></div>
@@ -325,11 +328,19 @@ const FIELD_LIBRARY = {
   sedationScore: { label:'Sedation score',  placeholder:'0-3',    type:'text' },
   pupil:         { label:'รูม่านตา',        placeholder:'3mm',    type:'text' },
   ivSite:        { label:'IV site',         type:'select', options:['','ปกติ','บวม/แดง/รั่วซึม'] },
+  pumpCheck:     { label:'ตรวจสอบ Infusion pump', type:'select', options:['','ตรวจสอบแล้ว','ไม่ตรวจสอบ'] },
   other:         { label:'ค่าอื่นๆ',        placeholder:'',       type:'text', wide:true },
   note:          { label:'หมายเหตุ',        placeholder:'',       type:'text', wide:true }
 };
-const CORE_FIELDS = ['bp','hr','rr','o2sat','temp']; // มีคอลัมน์เฉพาะใน backend อยู่แล้ว
+const CORE_FIELDS = ['bp','hr','rr','o2sat','temp'];
 const DEFAULT_FIELDS = 'bp,hr,rr,o2sat,temp,other,note';
+
+const SIDE_EFFECT_OPTIONS = [
+  'ท้องเสีย', 'คลื่นไส้', 'อาเจียน', 'ท้องอืด',
+  'ภาวะหัวใจเต้นช้า', 'หัวใจเต้นผิดจังหวะ', 'Hyperkalemia',
+  'ปวดบริเวณที่ฉีดยา/หลอดเลือดดำอักเสบ (phlebitis)',
+  'ทำลายเนื้อเยื่อบริเวณข้างเคียง (extravasation)'
+];
 
 let allHad = [];
 let editingId = null;
@@ -526,6 +537,18 @@ function renderFieldChips(){
       input.value = keys.join(',');
     });
   });
+  const box2 = document.getElementById('field-lib-chips-secondary');
+  if(box2){
+    box2.innerHTML = Object.entries(FIELD_LIBRARY).map(([key,f])=>`<span data-key="${key}">+ ${escapeHtml(f.label)}</span>`).join('');
+    box2.querySelectorAll('span').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const input = document.getElementById('ed-secondaryFields');
+        const keys = input.value.split(',').map(s=>s.trim()).filter(Boolean);
+        if(!keys.includes(chip.dataset.key)) keys.push(chip.dataset.key);
+        input.value = keys.join(',');
+      });
+    });
+  }
 }
 
 document.getElementById('btn-add-had').addEventListener('click', ()=> openEdit(null));
@@ -538,7 +561,7 @@ function openEdit(id){
   document.getElementById('ed-name').value = d ? d.name||'' : '';
   document.getElementById('ed-strength').value = d ? d.strength||'' : '';
   const fields = ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint',
+    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes',
     'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references'];
   fields.forEach(f=>{ document.getElementById('ed-'+f).value = d ? (d[f]||'') : ''; });
   document.getElementById('edit-msg').textContent = '';
@@ -554,7 +577,7 @@ document.getElementById('edit-save').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('edit-msg').textContent = 'กรุณากรอกชื่อยา'; return; }
   const entry = { id: editingId || undefined, name, strength: document.getElementById('ed-strength').value.trim() };
   ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint',
+   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes',
    'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references']
    .forEach(f=>{ entry[f] = document.getElementById('ed-'+f).value.trim(); });
   const btn = document.getElementById('edit-save');
@@ -597,22 +620,32 @@ document.getElementById('track-drug-select').addEventListener('change', (e)=>{
   buildTrackForm(had);
 });
 
+function buildWardOptions(){
+  const opts = [];
+  for(let i=1;i<=10;i++) opts.push('ชาย '+i);
+  for(let i=1;i<=10;i++) opts.push('หญิง '+i);
+  for(let i=1;i<=10;i++) opts.push('พิเศษ '+i);
+  opts.push('ห้องฉุกเฉิน');
+  opts.push('จุดตรวจผู้ป่วยนอก (OPD)');
+  opts.push('อื่นๆ (ระบุ)');
+  return opts;
+}
 function wardGuessFromRole(name){
   if(!name) return '';
   if(name.includes('ฉุกเฉิน')) return 'ห้องฉุกเฉิน';
   if(name.includes('นอก')) return 'จุดตรวจผู้ป่วยนอก (OPD)';
-  if(name.includes('หอผู้ป่วย')) return 'หอผู้ป่วยใน';
   return '';
 }
 
-function getFieldKeys(had){
-  // รองรับ syntax "คีย์:ความถี่พิเศษ(นาที)" เช่น "io:480" = ช่องนี้ให้เตือนว่าครบรอบทุก 480 นาที
-  // ต่างจากรอบติดตามหลัก (recurrenceMinutes) เช่น KCl เช็ค V/S ทุก 4 ชม. แต่บันทึก I/O ทุก 8 ชม.
-  const raw = (had.monitoringFields && had.monitoringFields.trim()) ? had.monitoringFields : DEFAULT_FIELDS;
-  return raw.split(',').map(s=>s.trim()).filter(Boolean).map(tok=>{
-    const [key, interval] = tok.split(':');
-    return { key: (key||'').trim(), interval: interval ? parseInt(interval,10) : null };
-  }).filter(f=>FIELD_LIBRARY[f.key]);
+function getFieldKeys(had, which){
+  const raw = which === 'secondary'
+    ? (had.secondaryFields || '')
+    : ((had.monitoringFields && had.monitoringFields.trim()) ? had.monitoringFields : DEFAULT_FIELDS);
+  if(!raw.trim()) return [];
+  return raw.split(',').map(tok=>{
+    const [key, interval] = tok.trim().split(':');
+    return { key: key.trim(), interval: interval ? parseInt(interval,10) : null };
+  }).filter(f => FIELD_LIBRARY[f.key]);
 }
 
 function buildTrackForm(had){
@@ -620,6 +653,9 @@ function buildTrackForm(had){
   currentHadDrug = had;
   const area = document.getElementById('track-form-area');
   const hasCustom = !!(had.monitoringFields && had.monitoringFields.trim());
+  const hasSecondary = !!(had.secondaryFields && had.secondaryFields.trim());
+  const wardOpts = buildWardOptions();
+  const guessedWard = wardGuessFromRole(auth?auth.name:'');
   area.innerHTML = `
     <div class="form-card">
       <h3>ข้อมูลผู้ป่วยและการให้ยา — ${escapeHtml(had.name)}</h3>
@@ -628,11 +664,21 @@ function buildTrackForm(had){
       <div class="field-grid">
         <div class="field"><label>HN ผู้ป่วย</label><input type="text" id="pt-hn"></div>
         <div class="field"><label>ชื่อ-สกุลผู้ป่วย</label><input type="text" id="pt-name"></div>
-        <div class="field"><label>หอผู้ป่วย/แผนก</label><input type="text" id="pt-ward" value="${escapeHtml(wardGuessFromRole(auth?auth.name:''))}"></div>
+        <div class="field">
+          <label>หอผู้ป่วย/แผนก</label>
+          <select id="pt-ward-select">
+            <option value="">— เลือก —</option>
+            ${wardOpts.map(w=>`<option value="${escapeHtml(w)}" ${w===guessedWard?'selected':''}>${escapeHtml(w)}</option>`).join('')}
+          </select>
+          <input type="text" id="pt-ward-other" placeholder="ระบุหอผู้ป่วย/แผนก" style="display:none;margin-top:6px;">
+        </div>
         <div class="field"><label>น้ำหนักตัว (กก.)</label><input type="number" id="pt-weight" step="0.1"></div>
         <div class="field">
-          <label>ขนาดยาที่ใช้จริง${had.doseUnitHint ? ` <span style="color:var(--teal);font-weight:400;">(หน่วย: ${escapeHtml(had.doseUnitHint)})</span>` : ''}</label>
-          <input type="text" id="pt-dose" placeholder="${escapeHtml(had.doseUnitHint ? 'เช่น '+had.doseUnitHint : 'เช่น 0.1 mcg/kg/min')}">
+          <label>ขนาดยาที่ใช้จริง</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="pt-dose-number" placeholder="เช่น 40" style="flex:1;">
+            <span style="font-size:13px;color:var(--ink-soft);white-space:nowrap;">${escapeHtml(had.doseUnitHint||'')}</span>
+          </div>
         </div>
         <div class="field"><label>พยาบาลผู้เตรียมยา</label><input type="text" id="pt-prepared" placeholder="ชื่อผู้ผสม/เตรียมยา"></div>
         <div class="field"><label>ชื่อพยาบาลผู้บันทึก</label><input type="text" id="pt-nurse" value="${escapeHtml(auth?auth.name:'')}"></div>
@@ -644,9 +690,6 @@ function buildTrackForm(had){
       <div class="reminder-box">
         <b>🔎 สิ่งที่ต้องติดตามหลังให้ยา:</b>${escapeHtml(had.monitoringParameters||'—')}
       </div>
-      ${had.adverseEffects ? `<div class="reminder-box" style="background:#FBEFDD;color:#8A5A28;">
-        <b>👁 สังเกตอาการข้างเคียง:</b>${escapeHtml(had.adverseEffects)}
-      </div>` : ''}
       <div class="reminder-box danger">
         <b>🚨 แจ้งแพทย์ทันทีเมื่อ:</b>${escapeHtml(had.reportToPhysician||'—')}
       </div>
@@ -660,6 +703,9 @@ function buildTrackForm(had){
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   document.getElementById('pt-start').value = now.toISOString().slice(0,16);
+  document.getElementById('pt-ward-select').addEventListener('change', (e)=>{
+    document.getElementById('pt-ward-other').style.display = (e.target.value === 'อื่นๆ (ระบุ)') ? 'block' : 'none';
+  });
   document.getElementById('btn-start-episode').addEventListener('click', ()=> startEpisode(had));
   if(tickTimer) clearInterval(tickTimer);
 }
@@ -667,12 +713,27 @@ function buildTrackForm(had){
 function fmtTime(d){ return d.toTimeString().slice(0,5); }
 function fmtDateTime(d){ return d.toLocaleString('th-TH'); }
 
+function getWardValue(){
+  const sel = document.getElementById('pt-ward-select').value;
+  if(sel === 'อื่นๆ (ระบุ)') return document.getElementById('pt-ward-other').value.trim();
+  return sel;
+}
+
+function buildCheckpointSeries(startTime, startOffsets, recurrenceMinutes, labelSuffix){
+  const list = startOffsets.map(off=>{
+    const t = new Date(startTime.getTime() + off*60000);
+    return { label: (off===0 ? 'ก่อนให้ยา/เริ่มให้ยา' : off+' นาที'+(labelSuffix||'')), offsetMin: off, time: t, saved:false, values:{} };
+  });
+  return list;
+}
+
 function buildCheckpointList(had, startTime){
   const offsets = (had.checkpointMinutes||'0,15,30,45,60').split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
-  return offsets.map(off=>{
-    const t = new Date(startTime.getTime() + off*60000);
-    return { label: off===0 ? 'ก่อนให้ยา/เริ่มให้ยา' : off+' นาที', offsetMin: off, time: t, saved:false, values:{} };
-  });
+  return buildCheckpointSeries(startTime, offsets, had.recurrenceMinutes, '');
+}
+function buildSecondaryCheckpointList(had, startTime){
+  if(!had.secondaryFields || !had.secondaryFields.trim()) return [];
+  return [{ label:'I/O เริ่มต้น', offsetMin:0, time:new Date(startTime), saved:false, values:{} }];
 }
 
 async function startEpisode(had){
@@ -682,147 +743,245 @@ async function startEpisode(had){
   if(!startVal){ toast('กรุณาระบุเวลาเริ่มให้ยา'); return; }
   const startTime = new Date(startVal);
   const recordId = 'rec' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const doseNum = document.getElementById('pt-dose-number').value.trim();
+  const unit = had.doseUnitHint || '';
+  const doseInfo = doseNum ? (doseNum + (unit ? ' '+unit : '')) : '';
   currentEpisode = {
     recordId, hadId: had.id, hadName: had.name,
     patientHN: hn, patientName: document.getElementById('pt-name').value.trim(),
-    ward: document.getElementById('pt-ward').value.trim(),
+    ward: getWardValue(),
     weight: document.getElementById('pt-weight').value.trim(),
-    doseInfo: document.getElementById('pt-dose').value.trim(),
+    doseInfo: doseInfo,
     nurseName: document.getElementById('pt-nurse').value.trim(),
     preparedBy: document.getElementById('pt-prepared').value.trim(),
     startTime: startTime.toISOString(),
-    checkpoints: buildCheckpointList(had, startTime)
+    checkpoints: buildCheckpointList(had, startTime),
+    secondaryCheckpoints: buildSecondaryCheckpointList(had, startTime),
+    sideEffects: { selected: [], other: '', management: '' }
   };
   document.getElementById('episode-status').textContent = `กำลังติดตาม — เริ่มเวลา ${fmtTime(startTime)}`;
   renderCheckpointTable();
   await saveCheckpointRow(currentEpisode.checkpoints[0], 'in_progress', true);
   currentEpisode.checkpoints[0].saved = true;
+  if(currentEpisode.secondaryCheckpoints.length){
+    await saveCheckpointRow(currentEpisode.secondaryCheckpoints[0], 'in_progress', true);
+    currentEpisode.secondaryCheckpoints[0].saved = true;
+  }
   if(tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(tickCheckpoints, 20000);
-  toast('เริ่มบันทึกการติดตามแล้ว — HN '+hn+' (ข้อมูลจะบันทึกขึ้นระบบทันทีที่กรอกเสร็จแต่ละช่อง)', 4000);
+  renderCheckpointTable();
+  toast('เริ่มบันทึกการติดตามแล้ว — HN '+hn+' (ข้อมูลบันทึกขึ้นระบบทันทีที่กรอกเสร็จแต่ละช่อง)', 4000);
+}
+
+function summaryBarHtml(){
+  const e = currentEpisode;
+  return `<div class="form-card" style="position:sticky;top:0;z-index:50;background:#fff;border:2px solid var(--teal);padding:12px 18px;margin-bottom:14px;">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;">
+      <div><span style="color:var(--ink-soft);">ผู้ป่วย:</span> <b>${escapeHtml(e.patientHN)} ${escapeHtml(e.patientName||'')}</b></div>
+      <div><span style="color:var(--ink-soft);">หอ/แผนก:</span> <b>${escapeHtml(e.ward||'-')}</b></div>
+      <div><span style="color:var(--ink-soft);">ยา:</span> <b>${escapeHtml(e.hadName)}</b></div>
+      <div><span style="color:var(--ink-soft);">ขนาดที่ให้จริง:</span> <b>${escapeHtml(e.doseInfo||'-')}</b></div>
+      <div><span style="color:var(--ink-soft);">เตรียมยาโดย:</span> <b>${escapeHtml(e.preparedBy||'-')}</b></div>
+      <div><span style="color:var(--ink-soft);">บันทึกโดย:</span> <b>${escapeHtml(e.nurseName||'-')}</b></div>
+    </div>
+  </div>`;
+}
+
+function renderFieldCell(f, idx, val, prefix){
+  const wideCls = f.def.wide ? ' wide' : '';
+  if(f.def.type === 'select'){
+    return `<td><select class="cp-field${wideCls}" data-key="${f.key}" data-idx="${idx}" data-group="${prefix}">${f.def.options.map(o=>`<option value="${escapeHtml(o)}" ${o===val?'selected':''}>${escapeHtml(o||'—')}</option>`).join('')}</select></td>`;
+  }
+  return `<td><input type="text" class="cp-field${wideCls}" data-key="${f.key}" data-idx="${idx}" data-group="${prefix}" value="${escapeHtml(val)}" placeholder="${escapeHtml(f.def.placeholder||'')}"></td>`;
+}
+
+function renderTableRows(checkpoints, fieldObjs, prefix){
+  return checkpoints.map((cp,idx)=>{
+    const cells = fieldObjs.map(f=> renderFieldCell(f, idx, cp.values[f.key]||'', prefix)).join('');
+    return `<tr class="cp-row" data-idx="${idx}" data-group="${prefix}">
+      <td><span class="cp-label">${escapeHtml(cp.label)}</span><br><span class="cp-time">${fmtTime(cp.time)}</span></td>
+      <td><span class="cp-status pending" id="cp-status-${prefix}-${idx}">รอถึงเวลา</span></td>
+      ${cells}
+      <td><button class="ghost small" onclick="saveCheckpointByIdx('${prefix}', ${idx})">บันทึก</button></td>
+    </tr>`;
+  }).join('');
 }
 
 function renderCheckpointTable(){
   const area = document.getElementById('cp-table-area');
-  const fieldObjs = getFieldKeys(currentHadDrug);
-  const theadCols = fieldObjs.map(fo=>{
-    const f = FIELD_LIBRARY[fo.key];
-    const intervalHint = fo.interval ? ` <span style="font-weight:400;color:var(--ink-faint);">(ทุก ${fo.interval>=60?(fo.interval/60)+'ชม.':fo.interval+'นาที'})</span>` : '';
-    return `<th>${escapeHtml(f.label)}${intervalHint}</th>`;
-  }).join('');
-  const rows = currentEpisode.checkpoints.map((cp,idx)=>{
-    const cells = fieldObjs.map(fo=>{
-      const k = fo.key, f = FIELD_LIBRARY[k];
-      const val = cp.values[k] || '';
-      const wideCls = f.wide ? ' wide' : '';
-      const isDueField = fo.interval ? (cp.offsetMin >= 0 && cp.offsetMin % fo.interval === 0) : true;
-      const dueDot = (fo.interval && isDueField) ? `<span title="ครบรอบบันทึกช่องนี้" style="color:var(--good);font-weight:700;margin-right:3px;">●</span>` : (fo.interval ? `<span title="ยังไม่ครบรอบช่องนี้ ข้ามได้" style="color:var(--ink-faint);margin-right:3px;">○</span>` : '');
-      if(f.type === 'select'){
-        return `<td>${dueDot}<select class="cp-field${wideCls}" data-key="${k}" data-idx="${idx}">${f.options.map(o=>`<option value="${escapeHtml(o)}" ${o===val?'selected':''}>${escapeHtml(o||'—')}</option>`).join('')}</select></td>`;
-      }
-      return `<td>${dueDot}<input type="text" class="cp-field${wideCls}" data-key="${k}" data-idx="${idx}" value="${escapeHtml(val)}" placeholder="${escapeHtml(f.placeholder||'')}"></td>`;
-    }).join('');
-    return `<tr class="cp-row" data-idx="${idx}">
-      <td><span class="cp-label">${escapeHtml(cp.label)}</span><br><span class="cp-time">${fmtTime(cp.time)}</span></td>
-      <td><span class="cp-status pending" id="cp-status-${idx}">รอถึงเวลา</span></td>
-      ${cells}
-    </tr>`;
-  }).join('');
-  const recurNote = currentHadDrug.recurrenceMinutes
-    ? `<div class="autosave-hint">🔁 ยานี้ตั้งค่าติดตามต่อเนื่องทุก ${currentHadDrug.recurrenceMinutes} นาที — ระบบจะ<b>เพิ่มรอบถัดไปให้อัตโนมัติ</b>ล่วงหน้าก่อนถึงเวลาเสมอ ไม่ต้องกดเพิ่มเอง (ปุ่มด้านล่างมีไว้เผื่อกรณีพิเศษเท่านั้น)</div>`
-    : '';
-  const dueDotLegend = fieldObjs.some(fo=>fo.interval)
-    ? `<div class="autosave-hint">● = ครบรอบต้องบันทึกช่องนี้ &nbsp; ○ = รอบนี้ยังไม่ครบ ข้ามได้ (เช่น I/O บันทึกเฉพาะทุก 8 ชม. แม้เช็ค V/S ทุก 4 ชม.)</div>`
-    : '';
-  area.innerHTML = `
+  const primaryFields = getFieldKeys(currentHadDrug, 'primary').map(f=>({key:f.key, def:FIELD_LIBRARY[f.key]}));
+  const secondaryFields = getFieldKeys(currentHadDrug, 'secondary').map(f=>({key:f.key, def:FIELD_LIBRARY[f.key]}));
+  const primaryTheadCols = primaryFields.map(f=>`<th>${escapeHtml(f.def.label)}</th>`).join('');
+  const secondaryTheadCols = secondaryFields.map(f=>`<th>${escapeHtml(f.def.label)}</th>`).join('');
+
+  const primaryRows = renderTableRows(currentEpisode.checkpoints, primaryFields, 'primary');
+  const secondaryRows = currentEpisode.secondaryCheckpoints.length ? renderTableRows(currentEpisode.secondaryCheckpoints, secondaryFields, 'secondary') : '';
+
+  const recurNote = currentHadDrug.recurrenceMinutes ? `<div class="autosave-hint">ระบบเพิ่มช่วงเวลาถัดไปให้อัตโนมัติล่วงหน้าเสมอ ทุก ${currentHadDrug.recurrenceMinutes} นาที (ไม่ต้องกดเพิ่มเอง)</div>` : '';
+  const secondaryRecurNote = currentHadDrug.secondaryRecurrenceMinutes ? `<div class="autosave-hint">เพิ่มรอบถัดไปให้อัตโนมัติ ทุก ${currentHadDrug.secondaryRecurrenceMinutes} นาที</div>` : '';
+
+  const se = currentEpisode.sideEffects || {selected:[], other:'', management:''};
+  const sideEffectsHtml = `
     <div class="form-card">
-      <h3>ตารางติดตามค่า Vital Sign</h3>
-      <div class="sub">ค่าจะถูก<b>บันทึกอัตโนมัติทันที</b>เมื่อกรอกเสร็จแล้วออกจากช่อง (ไม่ต้องกดปุ่มก็ได้ แต่กด "บันทึก" เพื่อยืนยันอีกครั้งได้)</div>
+      <h3>⚠️ อาการข้างเคียงที่พบ</h3>
+      <div class="sub">เลือกได้หลายอาการ — บันทึกใหม่ได้ทุกครั้งที่มีการเปลี่ยนแปลง (เก็บประวัติทุกครั้งที่บันทึก)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;">
+        ${SIDE_EFFECT_OPTIONS.map((opt,i)=>`
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--paper);padding:6px 12px;border-radius:8px;cursor:pointer;">
+            <input type="checkbox" class="se-checkbox" value="${escapeHtml(opt)}" ${se.selected.includes(opt)?'checked':''}> ${escapeHtml(opt)}
+          </label>`).join('')}
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--good-soft);padding:6px 12px;border-radius:8px;cursor:pointer;">
+          <input type="checkbox" id="se-none" ${se.selected.includes('ไม่พบอาการข้างเคียงจากยา')?'checked':''}> ไม่พบอาการข้างเคียงจากยา
+        </label>
+      </div>
+      <div class="field"><label>อาการอื่นๆ (ถ้ามี ระบุ)</label><input type="text" id="se-other" value="${escapeHtml(se.other||'')}"></div>
+      <div class="field" style="margin-top:8px;"><label>การแก้ไขเมื่อเกิดอาการข้างเคียง (ถ้ามี)</label><textarea id="se-management">${escapeHtml(se.management||'')}</textarea></div>
+      <button class="primary small" id="btn-save-se" style="margin-top:10px;">บันทึกอาการข้างเคียง</button>
+    </div>`;
+
+  area.innerHTML = summaryBarHtml() + `
+    <div class="form-card">
+      <h3>ตารางติดตามค่า Parameter ที่สำคัญ (Vital Sign)</h3>
+      <div class="sub">กรอกค่าให้ครบในแต่ละแถว แล้วกด <b>"บันทึก"</b> ท้ายแถวเพื่อบันทึกขึ้นระบบ (ไม่มีการบันทึกอัตโนมัติระหว่างพิมพ์ เพื่อป้องกันข้อมูลซ้ำซ้อนหลายเวอร์ชันต่อหนึ่งช่วงเวลา)</div>
       ${recurNote}
-      ${dueDotLegend}
       <div style="overflow-x:auto;">
       <table class="cp-table">
-        <thead><tr><th>Checkpoint</th><th>สถานะ</th>${theadCols}</tr></thead>
-        <tbody id="cp-tbody">${rows}</tbody>
+        <thead><tr><th>Checkpoint</th><th>สถานะ</th>${primaryTheadCols}<th></th></tr></thead>
+        <tbody id="cp-tbody-primary">${primaryRows}</tbody>
       </table>
       </div>
       <div style="margin-top:12px;">
-        <button class="ghost small" id="btn-add-cp">+ เพิ่มช่วงเวลาพิเศษนอกตาราง (กรณีฉุกเฉิน)</button>
+        <button class="ghost small" id="btn-add-cp-primary">+ เพิ่มช่วงเวลาถัดไป (Vital Sign)${currentHadDrug.recurrenceMinutes ? ' ทุก '+currentHadDrug.recurrenceMinutes+' นาที' : ''}</button>
       </div>
-      <div class="action-bar">
+    </div>
+    ${secondaryFields.length ? `
+    <div class="form-card">
+      <h3>ตารางติดตาม I/O</h3>
+      <div class="sub">แยกความถี่จากตาราง Vital Sign — บันทึกอัตโนมัติเหมือนกัน</div>
+      ${secondaryRecurNote}
+      <div style="overflow-x:auto;">
+      <table class="cp-table">
+        <thead><tr><th>Checkpoint</th><th>สถานะ</th>${secondaryTheadCols}<th></th></tr></thead>
+        <tbody id="cp-tbody-secondary">${secondaryRows}</tbody>
+      </table>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="ghost small" id="btn-add-cp-secondary">+ เพิ่มช่วงเวลาถัดไป (I/O)${currentHadDrug.secondaryRecurrenceMinutes ? ' ทุก '+currentHadDrug.secondaryRecurrenceMinutes+' นาที' : ''}</button>
+      </div>
+    </div>` : ''}
+    ${sideEffectsHtml}
+    <div class="form-card">
+      <div class="action-bar" style="margin-top:0;border-top:none;padding-top:0;">
         <button class="primary" id="btn-finish-episode">✔ สิ้นสุดการให้ยา/การติดตาม</button>
         <button class="ghost" id="btn-print">🖨 พิมพ์แบบบันทึก</button>
         <button class="ghost" id="btn-copy-focus">📋 สร้างข้อความ Focus Note</button>
       </div>
     </div>`;
-  document.getElementById('btn-add-cp').addEventListener('click', addExtraCheckpoint);
+
+  document.getElementById('btn-add-cp-primary').addEventListener('click', ()=> addExtraCheckpoint('primary'));
+  const secBtn = document.getElementById('btn-add-cp-secondary');
+  if(secBtn) secBtn.addEventListener('click', ()=> addExtraCheckpoint('secondary'));
   document.getElementById('btn-finish-episode').addEventListener('click', finishEpisode);
   document.getElementById('btn-print').addEventListener('click', ()=> window.print());
   document.getElementById('btn-copy-focus').addEventListener('click', showFocusNote);
-  area.querySelectorAll('.cp-field').forEach(el=>{
-    el.addEventListener('change', ()=> autoSaveField(el));
-  });
+  document.getElementById('btn-save-se').addEventListener('click', saveSideEffects);
   tickCheckpoints();
 }
 
-function autoSaveField(el){
-  const idx = parseInt(el.dataset.idx,10);
-  const key = el.dataset.key;
-  const cp = currentEpisode.checkpoints[idx];
-  cp.values[key] = el.value.trim();
-  saveCheckpointByIdx(idx, true); // silent-ish auto save
+// เก็บค่าจากช่องกรอกทั้งแถวเข้า memory (ไม่ยิง save ขึ้นเซิร์ฟเวอร์ — แค่เตรียมข้อมูลก่อนกดปุ่ม "บันทึก")
+function collectRowValues(which, idx){
+  const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
+  const cp = list[idx];
+  if(!cp) return;
+  document.querySelectorAll(`.cp-field[data-group="${which}"][data-idx="${idx}"]`).forEach(el=>{
+    cp.values[el.dataset.key] = el.value.trim();
+  });
 }
 
-// เพิ่มรอบถัดไปด้วยตนเอง (ปุ่มสำรอง) — ปกติระบบเพิ่มให้อัตโนมัติผ่าน ensureUpcomingCheckpoints() อยู่แล้ว
-function addExtraCheckpoint(){
+async function saveSideEffects(){
+  const auth = getAuth();
+  if(!auth){ openLogin(); return; }
+  const selected = Array.from(document.querySelectorAll('.se-checkbox:checked')).map(cb=>cb.value);
+  const none = document.getElementById('se-none').checked;
+  if(none) selected.push('ไม่พบอาการข้างเคียงจากยา');
+  const other = document.getElementById('se-other').value.trim();
+  const management = document.getElementById('se-management').value.trim();
+  currentEpisode.sideEffects = { selected, other, management };
+  const entry = {
+    recordId: currentEpisode.recordId, hadId: currentEpisode.hadId, hadName: currentEpisode.hadName,
+    patientHN: currentEpisode.patientHN, patientName: currentEpisode.patientName, ward: currentEpisode.ward,
+    startTime: currentEpisode.startTime, weight: currentEpisode.weight, doseInfo: currentEpisode.doseInfo,
+    checkpointLabel: 'อาการข้างเคียง', checkpointTime: new Date().toISOString(),
+    bp:'', hr:'', rr:'', o2sat:'', temp:'',
+    otherValues: JSON.stringify({ sideEffects: selected, sideEffectOther: other, management }),
+    note: management,
+    nurseName: currentEpisode.nurseName, preparedBy: currentEpisode.preparedBy||'', status:'in_progress'
+  };
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveHadRecord', code: auth.code, entry})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    toast('บันทึกอาการข้างเคียงแล้ว');
+  }catch(e){ toast('⚠️ บันทึกไม่สำเร็จ: '+e.message, 4000); }
+}
+
+function addExtraCheckpoint(which){
   if(!currentEpisode) return;
-  const last = currentEpisode.checkpoints[currentEpisode.checkpoints.length-1];
-  const increment = parseInt(currentHadDrug.recurrenceMinutes,10) || 30;
+  const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
+  const increment = which === 'secondary'
+    ? (parseInt(currentHadDrug.secondaryRecurrenceMinutes,10) || 480)
+    : (parseInt(currentHadDrug.recurrenceMinutes,10) || 30);
+  const last = list[list.length-1];
   const nextOffset = (last ? last.offsetMin : 0) + increment;
   const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
-  currentEpisode.checkpoints.push({ label: nextOffset+' นาที (เพิ่มพิเศษ)', offsetMin: nextOffset, time: t, saved:false, values:{} });
+  const label = which === 'secondary' ? `I/O ${Math.round(nextOffset/60)} ชม.` : `${nextOffset} นาที (ต่อเนื่อง)`;
+  list.push({ label, offsetMin: nextOffset, time: t, saved:false, values:{} });
   renderCheckpointTable();
 }
 
-// เพิ่มรอบถัดไปให้อัตโนมัติล่วงหน้า เพื่อไม่ให้พลาดรอบแม้ไม่มีใครกดปุ่มเอง (สำคัญต่อความปลอดภัย)
-// เรียกทุกครั้งที่ tickCheckpoints ทำงาน (ทุก 20 วิ) และตอนเริ่ม/ทำต่อการติดตาม
 function ensureUpcomingCheckpoints(){
-  if(!currentEpisode || !currentHadDrug) return false;
-  const recur = parseInt(currentHadDrug.recurrenceMinutes, 10);
-  if(!recur || recur <= 0) return false;
+  if(!currentEpisode || !currentHadDrug) return;
   const now = new Date();
-  let changed = false;
-  let guard = 0;
-  while(guard++ < 200){ // กันลูปไม่รู้จบ (รองรับกรณีไม่ได้เปิดหน้านี้มาหลายวัน)
-    const last = currentEpisode.checkpoints[currentEpisode.checkpoints.length - 1];
-    const minutesUntilLast = (last.time - now) / 60000;
-    if(minutesUntilLast > 30) break; // ยังไม่ใกล้ถึงรอบสุดท้าย ไม่ต้องเพิ่ม
-    const nextOffset = last.offsetMin + recur;
-    const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
-    currentEpisode.checkpoints.push({ label: nextOffset+' นาที (ต่อเนื่องอัตโนมัติ)', offsetMin: nextOffset, time: t, saved:false, values:{} });
-    changed = true;
-  }
-  return changed;
+  [['checkpoints','recurrenceMinutes',30],['secondaryCheckpoints','secondaryRecurrenceMinutes',480]].forEach(([listKey, recurKey, fallback])=>{
+    const list = currentEpisode[listKey];
+    if(!list || !list.length) return;
+    const recur = parseInt(currentHadDrug[recurKey],10) || (currentHadDrug[recurKey] ? fallback : null);
+    if(!recur) return;
+    const last = list[list.length-1];
+    const minutesUntilLast = (last.time - now)/60000;
+    if(minutesUntilLast < 30){
+      const nextOffset = last.offsetMin + recur;
+      const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
+      const label = listKey === 'secondaryCheckpoints' ? `I/O ${Math.round(nextOffset/60)} ชม.` : `${nextOffset} นาที (ต่อเนื่อง)`;
+      list.push({ label, offsetMin: nextOffset, time: t, saved:false, values:{} });
+      renderCheckpointTable();
+    }
+  });
 }
 
 function tickCheckpoints(){
   if(!currentEpisode) return;
-  if(ensureUpcomingCheckpoints()){ renderCheckpointTable(); return; } // re-render แล้วจบ (renderCheckpointTable เรียก tickCheckpoints ต่อท้ายอยู่แล้ว)
+  ensureUpcomingCheckpoints();
   const now = new Date();
-  currentEpisode.checkpoints.forEach((cp, idx)=>{
-    const el = document.getElementById('cp-status-'+idx);
-    const row = document.querySelector(`.cp-row[data-idx="${idx}"]`);
-    if(!el || !row) return;
-    if(cp.saved){ el.textContent='บันทึกแล้ว'; el.className='cp-status saved'; row.className='cp-row saved'; return; }
-    const diffMin = (now - cp.time)/60000;
-    if(diffMin >= 10){ el.textContent='เลยเวลามาก'; el.className='cp-status overdue'; row.className='cp-row overdue'; }
-    else if(diffMin >= 0){ el.textContent='ถึงเวลาแล้ว'; el.className='cp-status due'; row.className='cp-row due'; }
-    else { el.textContent='รอถึงเวลา'; el.className='cp-status pending'; row.className='cp-row'; }
+  const groups = [['checkpoints','primary'], ['secondaryCheckpoints','secondary']];
+  groups.forEach(([listKey, prefix])=>{
+    (currentEpisode[listKey]||[]).forEach((cp, idx)=>{
+      const el = document.getElementById('cp-status-'+prefix+'-'+idx);
+      const row = document.querySelector(`.cp-row[data-idx="${idx}"][data-group="${prefix}"]`);
+      if(!el || !row) return;
+      if(cp.saved){ el.textContent='บันทึกแล้ว'; el.className='cp-status saved'; row.className='cp-row saved'; return; }
+      const diffMin = (now - cp.time)/60000;
+      if(diffMin >= 10){ el.textContent='เลยเวลามาก'; el.className='cp-status overdue'; row.className='cp-row overdue'; }
+      else if(diffMin >= 0){ el.textContent='ถึงเวลาแล้ว'; el.className='cp-status due'; row.className='cp-row due'; }
+      else { el.textContent='รอถึงเวลา'; el.className='cp-status pending'; row.className='cp-row'; }
+    });
   });
 }
 
-async function saveCheckpointByIdx(idx, silent){
-  const cp = currentEpisode.checkpoints[idx];
+async function saveCheckpointByIdx(which, idx, silent){
+  collectRowValues(which, idx);
+  const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
+  const cp = list[idx];
   await saveCheckpointRow(cp, 'in_progress', silent);
   cp.saved = true;
   tickCheckpoints();
@@ -873,7 +1032,7 @@ async function finishEpisode(){
   loadResumeList();
 }
 
-// ---------- resume in-progress episodes (โหลดทุกแท็บ + รีเฟรชอัตโนมัติ ให้เห็นได้ทันทีไม่ว่าใครเข้ามา) ----------
+// ---------- resume in-progress episodes ----------
 let lastInProgressGroups = {};
 async function loadResumeList(){
   const auth = getAuth();
@@ -891,21 +1050,15 @@ async function loadResumeList(){
     records.forEach(r=>{ (groups[r.recordId] = groups[r.recordId] || []).push(r); });
     const activeRecId = currentEpisode ? currentEpisode.recordId : null;
     const inProgress = Object.entries(groups).filter(([id, rows])=>{
-      if(id === activeRecId) return false; // ไม่ต้องเตือนตัวเองว่า "ทำต่อ" รายการที่กำลังเปิดอยู่แล้ว
+      if(id === activeRecId) return false;
       const latest = rows.reduce((a,b)=> (a.createdAt > b.createdAt ? a : b));
       return latest.status !== 'completed';
     });
     lastInProgressGroups = Object.fromEntries(inProgress);
 
-    // --- tab badge (มองเห็นได้ทันทีไม่ต้องกดเข้าแท็บติดตาม) ---
-    if(inProgress.length){
-      badge.textContent = inProgress.length;
-      badge.style.display = 'inline-flex';
-    } else {
-      badge.style.display = 'none';
-    }
+    if(inProgress.length){ badge.textContent = inProgress.length; badge.style.display = 'inline-flex'; }
+    else { badge.style.display = 'none'; }
 
-    // --- global banner (โชว์ทุกแท็บ ไม่ใช่แค่แท็บติดตาม) ---
     if(inProgress.length){
       document.getElementById('gab-count-text').textContent =
         `กำลังมีการติดตามยา HAD อยู่ ${inProgress.length} รายการ — ใครก็เข้ามาทำต่อได้เลย (ไม่ต้องเริ่มใหม่)`;
@@ -914,11 +1067,8 @@ async function loadResumeList(){
         return `${escapeHtml(f.hadName)} · HN ${escapeHtml(f.patientHN)} ${escapeHtml(f.patientName||'')} · เริ่ม ${f.startTime?fmtTime(new Date(f.startTime)):'-'}`;
       }).join('<br>') + (inProgress.length>4 ? `<br>และอีก ${inProgress.length-4} รายการ...` : '');
       banner.classList.add('show');
-    } else {
-      banner.classList.remove('show');
-    }
+    } else { banner.classList.remove('show'); }
 
-    // --- resume list ในแท็บติดตาม ---
     if(!inProgress.length){ area.innerHTML=''; return; }
     area.innerHTML = `<div class="info-banner" style="margin-bottom:10px;">👥 รายการด้านล่างมองเห็นได้จากเจ้าหน้าที่ทุกคนที่ login — ไม่ว่าใครเริ่มไว้ คนอื่นก็กด "ทำต่อ" ได้ทันที เหมาะสำหรับตอนเปลี่ยนเวร</div>` +
       inProgress.map(([recId, rows])=>{
@@ -930,7 +1080,7 @@ async function loadResumeList(){
       </div>`;
     }).join('');
     area.querySelectorAll('.resume-btn').forEach(btn=> btn.addEventListener('click', ()=> resumeEpisode(btn.dataset.recid, groups[btn.dataset.recid])));
-  }catch(e){ /* silent - ไม่รบกวนผู้ใช้ถ้าเน็ตสะดุดชั่วคราว จะลองใหม่รอบถัดไปเอง */ }
+  }catch(e){ /* silent */ }
 }
 
 function resumeEpisode(recordId, rows){
@@ -942,54 +1092,73 @@ function resumeEpisode(recordId, rows){
   buildTrackForm(had);
   document.getElementById('pt-hn').value = first.patientHN || '';
   document.getElementById('pt-name').value = first.patientName || '';
-  document.getElementById('pt-ward').value = first.ward || '';
+  const wardSel = document.getElementById('pt-ward-select');
+  const wardOpts = Array.from(wardSel.options).map(o=>o.value);
+  if(wardOpts.includes(first.ward)){ wardSel.value = first.ward; }
+  else if(first.ward){ wardSel.value = 'อื่นๆ (ระบุ)'; document.getElementById('pt-ward-other').style.display='block'; document.getElementById('pt-ward-other').value = first.ward; }
   document.getElementById('pt-weight').value = first.weight || '';
-  document.getElementById('pt-dose').value = first.doseInfo || '';
+  // ขนาดยา: ถ้ามีหน่วยต่อท้ายที่ตรงกับ doseUnitHint ให้ตัดออกให้เหลือแค่ตัวเลขกลับเข้าช่อง
+  let doseNum = first.doseInfo || '';
+  if(had.doseUnitHint && doseNum.endsWith(had.doseUnitHint)) doseNum = doseNum.replace(had.doseUnitHint,'').trim();
+  document.getElementById('pt-dose-number').value = doseNum;
   document.getElementById('pt-nurse').value = first.nurseName || '';
   document.getElementById('pt-prepared').value = first.preparedBy || '';
   const startTime = new Date(first.startTime);
   const startLocal = new Date(startTime.getTime() - startTime.getTimezoneOffset()*60000);
   document.getElementById('pt-start').value = startLocal.toISOString().slice(0,16);
 
-  const standard = buildCheckpointList(had, startTime);
-  const byLabel = {};
-  rows.forEach(r=>{ if(r.checkpointLabel) byLabel[r.checkpointLabel] = r; });
-  const checkpoints = standard.map(cp=>{
-    const r = byLabel[cp.label];
-    if(r){
-      let extra = {}; try{ extra = JSON.parse(r.otherValues||'{}'); }catch(e){}
-      cp.saved = true;
-      cp.values = { bp:r.bp||'', hr:r.hr||'', rr:r.rr||'', o2sat:r.o2sat||'', temp:r.temp||'', note:r.note||'', ...extra };
-      delete byLabel[cp.label];
-    }
-    return cp;
-  });
-  // เพิ่ม checkpoint พิเศษที่เคยบันทึกไว้แต่ไม่อยู่ในตารางมาตรฐาน (เช่น "เพิ่มช่วงเวลาถัดไป")
-  Object.values(byLabel).forEach(r=>{
-    if(r.checkpointLabel === 'สิ้นสุดการให้ยา') return;
-    let extra = {}; try{ extra = JSON.parse(r.otherValues||'{}'); }catch(e){}
-    checkpoints.push({
-      label:r.checkpointLabel, offsetMin: 9999, time: new Date(r.checkpointTime||first.startTime),
-      saved:true, values:{ bp:r.bp||'', hr:r.hr||'', rr:r.rr||'', o2sat:r.o2sat||'', temp:r.temp||'', note:r.note||'', ...extra }
+  function rebuildSeries(standard, rowsForGroup){
+    const byLabel = {};
+    rowsForGroup.forEach(r=>{ if(r.checkpointLabel) byLabel[r.checkpointLabel] = r; });
+    const list = standard.map(cp=>{
+      const r = byLabel[cp.label];
+      if(r){
+        let extra = {}; try{ extra = JSON.parse(r.otherValues||'{}'); }catch(e){}
+        cp.saved = true;
+        cp.values = { bp:r.bp||'', hr:r.hr||'', rr:r.rr||'', o2sat:r.o2sat||'', temp:r.temp||'', note:r.note||'', ...extra };
+        delete byLabel[cp.label];
+      }
+      return cp;
     });
-  });
-  checkpoints.sort((a,b)=> a.time - b.time);
+    Object.values(byLabel).forEach(r=>{
+      if(r.checkpointLabel === 'สิ้นสุดการให้ยา' || r.checkpointLabel === 'อาการข้างเคียง') return;
+      let extra = {}; try{ extra = JSON.parse(r.otherValues||'{}'); }catch(e){}
+      list.push({ label:r.checkpointLabel, offsetMin: 9999, time: new Date(r.checkpointTime||first.startTime),
+        saved:true, values:{ bp:r.bp||'', hr:r.hr||'', rr:r.rr||'', o2sat:r.o2sat||'', temp:r.temp||'', note:r.note||'', ...extra } });
+    });
+    list.sort((a,b)=> a.time - b.time);
+    return list;
+  }
+
+  const primaryStandard = buildCheckpointList(had, startTime);
+  const secondaryStandard = buildSecondaryCheckpointList(had, startTime);
+  const secondaryRows = rows.filter(r=> (r.checkpointLabel||'').startsWith('I/O'));
+  const primaryRows = rows.filter(r=> !(r.checkpointLabel||'').startsWith('I/O') && r.checkpointLabel !== 'อาการข้างเคียง' && r.checkpointLabel !== 'สิ้นสุดการให้ยา');
+
+  const checkpoints = rebuildSeries(primaryStandard, primaryRows);
+  const secondaryCheckpoints = rebuildSeries(secondaryStandard, secondaryRows);
+
+  const seRow = rows.filter(r=>r.checkpointLabel==='อาการข้างเคียง').sort((a,b)=> a.createdAt < b.createdAt ? 1 : -1)[0];
+  let sideEffects = { selected: [], other: '', management: '' };
+  if(seRow){
+    try{ const ov = JSON.parse(seRow.otherValues||'{}'); sideEffects = { selected: ov.sideEffects||[], other: ov.sideEffectOther||'', management: ov.management||'' }; }catch(e){}
+  }
 
   currentEpisode = {
     recordId, hadId: had.id, hadName: had.name,
     patientHN: first.patientHN, patientName: first.patientName, ward: first.ward,
     weight: first.weight, doseInfo: first.doseInfo, nurseName: first.nurseName, preparedBy: first.preparedBy||'',
-    startTime: first.startTime, checkpoints
+    startTime: first.startTime, checkpoints, secondaryCheckpoints, sideEffects
   };
   document.getElementById('episode-status').textContent = `กำลังติดตามต่อ — เริ่มเวลา ${fmtTime(startTime)}`;
   renderCheckpointTable();
   if(tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(tickCheckpoints, 20000);
   toast('ดึงข้อมูลการติดตามเดิมกลับมาแล้ว');
-  loadResumeList(); // เอารายการนี้ออกจาก "รอทำต่อ" เพราะกำลังเปิดอยู่แล้ว
+  loadResumeList();
 }
 
-// ---------- focus note (โครงสร้างจริงตามที่พยาบาลใช้: ก่อนให้ยา / หลังให้ยา / สังเกตอาการข้างเคียง) ----------
+// ---------- focus note ----------
 function showFocusNote(){
   if(!currentEpisode || !currentHadDrug) return;
   const had = currentHadDrug;
@@ -1002,21 +1171,36 @@ function showFocusNote(){
   lines.push(`   เริ่มให้ยาเวลา ${fmtTime(new Date(currentEpisode.startTime))} ขนาดยา ${currentEpisode.doseInfo||'-'} น้ำหนักตัว ${currentEpisode.weight||'-'} กก.`);
   lines.push(`   เตรียม/ผสมยาโดย ${currentEpisode.preparedBy||'-'}`);
   lines.push('');
-  lines.push('   2) หลังให้ยา — ติดตามตามคู่มือ HAD');
-  const fieldObjs = getFieldKeys(had);
+  lines.push('   2) หลังให้ยา — ติดตามตามคู่มือ HAD (Vital Sign)');
+  const primaryFieldObjs = getFieldKeys(had, 'primary');
   currentEpisode.checkpoints.filter(cp=>cp.saved).forEach(cp=>{
     const v = cp.values||{};
-    const parts = fieldObjs.map(fo=>{
-      const k = fo.key;
-      if(!v[k]) return null;
-      const lbl = FIELD_LIBRARY[k].label.replace(/\s*\(.*?\)\s*/,'');
-      return lbl+' '+v[k];
+    const parts = primaryFieldObjs.map(f=>{
+      if(!v[f.key]) return null;
+      const lbl = FIELD_LIBRARY[f.key].label.replace(/\s*\(.*?\)\s*/,'');
+      return lbl+' '+v[f.key];
     }).filter(Boolean);
     lines.push(`   - ${cp.label} (${fmtTime(cp.time)}): ${parts.join(', ')||'-'}${v.note?(' | '+v.note):''}`);
   });
+  if(currentEpisode.secondaryCheckpoints && currentEpisode.secondaryCheckpoints.length){
+    lines.push('');
+    lines.push('   3) I/O');
+    const secFieldObjs = getFieldKeys(had, 'secondary');
+    currentEpisode.secondaryCheckpoints.filter(cp=>cp.saved).forEach(cp=>{
+      const v = cp.values||{};
+      const parts = secFieldObjs.map(f=> v[f.key] ? (FIELD_LIBRARY[f.key].label+' '+v[f.key]) : null).filter(Boolean);
+      lines.push(`   - ${cp.label} (${fmtTime(cp.time)}): ${parts.join(', ')||'-'}${v.note?(' | '+v.note):''}`);
+    });
+  }
   lines.push('');
-  lines.push('   3) สังเกตอาการข้างเคียง');
-  (had.adverseEffects||'ไม่พบข้อมูลในคู่มือ — สังเกตอาการผิดปกติทั่วไป').split(/[;\n]/).map(s=>s.trim()).filter(Boolean).forEach(s=> lines.push('   - '+s));
+  lines.push('   4) อาการข้างเคียง');
+  const se = currentEpisode.sideEffects || {selected:[],other:'',management:''};
+  if(se.selected.length){
+    lines.push('   พบ: ' + se.selected.join(', ') + (se.other ? ', '+se.other : ''));
+    if(se.management) lines.push('   การแก้ไข: ' + se.management);
+  } else {
+    lines.push('   ไม่พบอาการข้างเคียงจากยา (ยังไม่ได้บันทึก หรือไม่พบอาการ)');
+  }
   lines.push('');
   lines.push(`E: ผู้ป่วยได้รับยาต่อเนื่อง สัญญาณชีพ/ค่าที่ติดตามอยู่ในเกณฑ์ที่กำหนด ไม่พบ/พบ(ระบุ) อาการผิดปกติที่ต้องรายงานแพทย์`);
   lines.push(`   บันทึกโดย ${currentEpisode.nurseName||'-'} วันที่ ${fmtDateTime(new Date())}`);
@@ -1029,6 +1213,7 @@ function showFocusNote(){
   };
 }
 document.getElementById('focus-close').addEventListener('click', ()=> document.getElementById('focus-overlay').classList.remove('show'));
+
 
 // ======================= HISTORY =======================
 document.getElementById('btn-hist-search').addEventListener('click', searchHistory);
