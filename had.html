@@ -322,6 +322,8 @@ const FIELD_LIBRARY = {
   ekgStatus:     { label:'EKG',             type:'select', options:['','ปกติ','ผิดปกติ'] },
   urineOutput:   { label:'ปัสสาวะ (mL/hr)', placeholder:'40',     type:'text' },
   io:            { label:'I/O สะสม',        placeholder:'+200',   type:'text' },
+  intake:        { label:'Intake (mL)',     placeholder:'500',    type:'text' },
+  output:        { label:'Output (mL)',     placeholder:'300',    type:'text' },
   serumK:        { label:'Serum K+',        placeholder:'4.0',    type:'text' },
   serumCa:       { label:'Serum Ca',        placeholder:'9.0',    type:'text' },
   painScore:     { label:'Pain score',      placeholder:'0-10',   type:'text' },
@@ -653,7 +655,6 @@ function buildTrackForm(had){
   currentHadDrug = had;
   const area = document.getElementById('track-form-area');
   const hasCustom = !!(had.monitoringFields && had.monitoringFields.trim());
-  const hasSecondary = !!(had.secondaryFields && had.secondaryFields.trim());
   const wardOpts = buildWardOptions();
   const guessedWard = wardGuessFromRole(auth?auth.name:'');
   area.innerHTML = `
@@ -719,17 +720,12 @@ function getWardValue(){
   return sel;
 }
 
-function buildCheckpointSeries(startTime, startOffsets, recurrenceMinutes, labelSuffix){
-  const list = startOffsets.map(off=>{
-    const t = new Date(startTime.getTime() + off*60000);
-    return { label: (off===0 ? 'ก่อนให้ยา/เริ่มให้ยา' : off+' นาที'+(labelSuffix||'')), offsetMin: off, time: t, saved:false, values:{} };
-  });
-  return list;
-}
-
 function buildCheckpointList(had, startTime){
-  const offsets = (had.checkpointMinutes||'0,15,30,45,60').split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
-  return buildCheckpointSeries(startTime, offsets, had.recurrenceMinutes, '');
+  const offsets = (had.checkpointMinutes||'0').split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
+  return offsets.map(off=>{
+    const t = new Date(startTime.getTime() + off*60000);
+    return { label: off===0 ? 'ก่อนให้ยา/เริ่มให้ยา' : off+' นาที', offsetMin: off, time: t, saved:false, values:{} };
+  });
 }
 function buildSecondaryCheckpointList(had, startTime){
   if(!had.secondaryFields || !had.secondaryFields.trim()) return [];
@@ -757,20 +753,14 @@ async function startEpisode(had){
     startTime: startTime.toISOString(),
     checkpoints: buildCheckpointList(had, startTime),
     secondaryCheckpoints: buildSecondaryCheckpointList(had, startTime),
-    sideEffects: { selected: [], other: '', management: '' }
+    sideEffectLog: []
   };
-  document.getElementById('episode-status').textContent = `กำลังติดตาม — เริ่มเวลา ${fmtTime(startTime)}`;
-  renderCheckpointTable();
-  await saveCheckpointRow(currentEpisode.checkpoints[0], 'in_progress', true);
-  currentEpisode.checkpoints[0].saved = true;
-  if(currentEpisode.secondaryCheckpoints.length){
-    await saveCheckpointRow(currentEpisode.secondaryCheckpoints[0], 'in_progress', true);
-    currentEpisode.secondaryCheckpoints[0].saved = true;
-  }
+  document.getElementById('episode-status').textContent = `กำลังติดตาม — เริ่มเวลา ${fmtTime(startTime)} — ยังไม่มีการบันทึกใดๆ จนกว่าจะกด "บันทึก" ในแต่ละแถว`;
+  // ไม่มีการบันทึกอัตโนมัติใดๆ ตอนเริ่ม — ผู้ใช้ต้องกด "บันทึก" เองทุกแถวรวมถึงแถวแรก
   if(tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(tickCheckpoints, 20000);
   renderCheckpointTable();
-  toast('เริ่มบันทึกการติดตามแล้ว — HN '+hn+' (ข้อมูลบันทึกขึ้นระบบทันทีที่กรอกเสร็จแต่ละช่อง)', 4000);
+  toast('สร้างตารางติดตามแล้ว — กด "บันทึก" ที่แต่ละแถวเพื่อบันทึกขึ้นระบบเอง', 4000);
 }
 
 function summaryBarHtml(){
@@ -802,7 +792,10 @@ function renderTableRows(checkpoints, fieldObjs, prefix){
       <td><span class="cp-label">${escapeHtml(cp.label)}</span><br><span class="cp-time">${fmtTime(cp.time)}</span></td>
       <td><span class="cp-status pending" id="cp-status-${prefix}-${idx}">รอถึงเวลา</span></td>
       ${cells}
-      <td><button class="ghost small" onclick="saveCheckpointByIdx('${prefix}', ${idx})">บันทึก</button></td>
+      <td style="white-space:nowrap;">
+        <button class="ghost small" onclick="saveCheckpointByIdx('${prefix}', ${idx})">บันทึก</button>
+        <button class="ghost small" style="color:var(--danger);border-color:var(--danger);" onclick="deleteCheckpointByIdx('${prefix}', ${idx})">ลบ</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -817,32 +810,24 @@ function renderCheckpointTable(){
   const primaryRows = renderTableRows(currentEpisode.checkpoints, primaryFields, 'primary');
   const secondaryRows = currentEpisode.secondaryCheckpoints.length ? renderTableRows(currentEpisode.secondaryCheckpoints, secondaryFields, 'secondary') : '';
 
-  const recurNote = currentHadDrug.recurrenceMinutes ? `<div class="autosave-hint">ระบบเพิ่มช่วงเวลาถัดไปให้อัตโนมัติล่วงหน้าเสมอ ทุก ${currentHadDrug.recurrenceMinutes} นาที (ไม่ต้องกดเพิ่มเอง)</div>` : '';
-  const secondaryRecurNote = currentHadDrug.secondaryRecurrenceMinutes ? `<div class="autosave-hint">เพิ่มรอบถัดไปให้อัตโนมัติ ทุก ${currentHadDrug.secondaryRecurrenceMinutes} นาที</div>` : '';
+  const recurNote = currentHadDrug.recurrenceMinutes ? `<div class="autosave-hint">กด "+เพิ่มช่วงเวลาถัดไป" เพื่อเพิ่มรอบถัดไปเอง (ทุก ${currentHadDrug.recurrenceMinutes} นาที) — ระบบไม่เพิ่มให้อัตโนมัติ</div>` : '';
+  const secondaryRecurNote = currentHadDrug.secondaryRecurrenceMinutes ? `<div class="autosave-hint">กด "+เพิ่มช่วงเวลาถัดไป" เพื่อเพิ่มรอบถัดไปเอง (ทุก ${currentHadDrug.secondaryRecurrenceMinutes} นาที — Serum K+ กรอกได้อิสระตามที่แพทย์สั่งตรวจ ไม่ผูกกับรอบนี้)</div>` : '';
 
-  const se = currentEpisode.sideEffects || {selected:[], other:'', management:''};
-  const sideEffectsHtml = `
-    <div class="form-card">
-      <h3>⚠️ อาการข้างเคียงที่พบ</h3>
-      <div class="sub">เลือกได้หลายอาการ — บันทึกใหม่ได้ทุกครั้งที่มีการเปลี่ยนแปลง (เก็บประวัติทุกครั้งที่บันทึก)</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;">
-        ${SIDE_EFFECT_OPTIONS.map((opt,i)=>`
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--paper);padding:6px 12px;border-radius:8px;cursor:pointer;">
-            <input type="checkbox" class="se-checkbox" value="${escapeHtml(opt)}" ${se.selected.includes(opt)?'checked':''}> ${escapeHtml(opt)}
-          </label>`).join('')}
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--good-soft);padding:6px 12px;border-radius:8px;cursor:pointer;">
-          <input type="checkbox" id="se-none" ${se.selected.includes('ไม่พบอาการข้างเคียงจากยา')?'checked':''}> ไม่พบอาการข้างเคียงจากยา
-        </label>
-      </div>
-      <div class="field"><label>อาการอื่นๆ (ถ้ามี ระบุ)</label><input type="text" id="se-other" value="${escapeHtml(se.other||'')}"></div>
-      <div class="field" style="margin-top:8px;"><label>การแก้ไขเมื่อเกิดอาการข้างเคียง (ถ้ามี)</label><textarea id="se-management">${escapeHtml(se.management||'')}</textarea></div>
-      <button class="primary small" id="btn-save-se" style="margin-top:10px;">บันทึกอาการข้างเคียง</button>
-    </div>`;
+  const seOptions = [...SIDE_EFFECT_OPTIONS, 'อาการอื่นๆ (ระบุ)', 'ไม่พบอาการข้างเคียงจากยา'];
+  const seLogHtml = (currentEpisode.sideEffectLog||[]).length ? `
+    <div style="margin:10px 0;font-size:12.5px;">
+      <b>บันทึกไว้แล้ว:</b>
+      <ul style="margin:6px 0 0;padding-left:18px;">
+        ${currentEpisode.sideEffectLog.map(s=>`<li>${escapeHtml(s.effect)} — เวลา ${escapeHtml(s.occurredAt)}${s.management?(' — แก้ไข: '+escapeHtml(s.management)):''}</li>`).join('')}
+      </ul>
+    </div>` : '';
 
   area.innerHTML = summaryBarHtml() + `
     <div class="form-card">
-      <h3>ตารางติดตามค่า Parameter ที่สำคัญ (Vital Sign)</h3>
-      <div class="sub">กรอกค่าให้ครบในแต่ละแถว แล้วกด <b>"บันทึก"</b> ท้ายแถวเพื่อบันทึกขึ้นระบบ (ไม่มีการบันทึกอัตโนมัติระหว่างพิมพ์ เพื่อป้องกันข้อมูลซ้ำซ้อนหลายเวอร์ชันต่อหนึ่งช่วงเวลา)</div>
+      <h3>ตารางติดตามค่า Parameter ที่สำคัญ</h3>
+      <div class="sub">กรอกค่าให้ครบในแต่ละแถว แล้วกด <b>"บันทึก"</b> ท้ายแถวเพื่อบันทึกขึ้นระบบ — กด "บันทึก" ซ้ำที่แถวเดิมจะ<b>ทับค่าเดิม</b>ได้เลยถ้ากรอกผิด (ไม่มีการบันทึกอัตโนมัติ)</div>
+
+      <h4 style="margin:18px 0 4px;font-size:14px;color:var(--teal-deep);">Vital Sign</h4>
       ${recurNote}
       <div style="overflow-x:auto;">
       <table class="cp-table">
@@ -853,11 +838,11 @@ function renderCheckpointTable(){
       <div style="margin-top:12px;">
         <button class="ghost small" id="btn-add-cp-primary">+ เพิ่มช่วงเวลาถัดไป (Vital Sign)${currentHadDrug.recurrenceMinutes ? ' ทุก '+currentHadDrug.recurrenceMinutes+' นาที' : ''}</button>
       </div>
-    </div>
-    ${secondaryFields.length ? `
-    <div class="form-card">
-      <h3>ตารางติดตาม I/O</h3>
-      <div class="sub">แยกความถี่จากตาราง Vital Sign — บันทึกอัตโนมัติเหมือนกัน</div>
+
+      ${secondaryFields.length ? `
+      <hr style="border:none;border-top:1px solid var(--line);margin:22px 0 16px;">
+      <h4 style="margin:0 0 4px;font-size:14px;color:var(--teal-deep);">I/O และ Serum K+</h4>
+      <div class="sub">แยกความถี่จากตาราง Vital Sign — กด "บันทึก" เองเช่นกัน (กดซ้ำ = ทับค่าเดิม)</div>
       ${secondaryRecurNote}
       <div style="overflow-x:auto;">
       <table class="cp-table">
@@ -867,9 +852,32 @@ function renderCheckpointTable(){
       </div>
       <div style="margin-top:12px;">
         <button class="ghost small" id="btn-add-cp-secondary">+ เพิ่มช่วงเวลาถัดไป (I/O)${currentHadDrug.secondaryRecurrenceMinutes ? ' ทุก '+currentHadDrug.secondaryRecurrenceMinutes+' นาที' : ''}</button>
+      </div>` : ''}
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:22px 0 16px;">
+      <h4 style="margin:0 0 4px;font-size:14px;color:var(--danger);">⚠️ อาการข้างเคียงที่พบ</h4>
+      <div class="sub">เลือกอาการทีละรายการ ระบุเวลาที่เกิด แล้วกดบันทึก — บันทึกได้หลายรายการสะสมไว้</div>
+      ${seLogHtml}
+      <div class="field-grid">
+        <div class="field">
+          <label>อาการข้างเคียงที่พบ</label>
+          <select id="se-select">
+            <option value="">— เลือกอาการ —</option>
+            ${seOptions.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" id="se-other-wrap" style="display:none;">
+          <label>ระบุอาการอื่นๆ</label><input type="text" id="se-other-text">
+        </div>
+        <div class="field" id="se-time-wrap" style="display:none;">
+          <label>เวลาที่เกิดอาการ</label><input type="datetime-local" id="se-occurred-at">
+        </div>
       </div>
-    </div>` : ''}
-    ${sideEffectsHtml}
+      <div class="field" id="se-mgmt-wrap" style="display:none;margin-top:8px;">
+        <label>การแก้ไขเมื่อเกิดอาการข้างเคียง (ถ้ามี)</label><textarea id="se-management"></textarea>
+      </div>
+      <button class="primary small" id="btn-save-se" style="margin-top:10px;">บันทึกอาการข้างเคียงนี้</button>
+    </div>
     <div class="form-card">
       <div class="action-bar" style="margin-top:0;border-top:none;padding-top:0;">
         <button class="primary" id="btn-finish-episode">✔ สิ้นสุดการให้ยา/การติดตาม</button>
@@ -884,11 +892,25 @@ function renderCheckpointTable(){
   document.getElementById('btn-finish-episode').addEventListener('click', finishEpisode);
   document.getElementById('btn-print').addEventListener('click', ()=> window.print());
   document.getElementById('btn-copy-focus').addEventListener('click', showFocusNote);
-  document.getElementById('btn-save-se').addEventListener('click', saveSideEffects);
+  const seSelect = document.getElementById('se-select');
+  if(seSelect){
+    seSelect.addEventListener('change', (e)=>{
+      const v = e.target.value;
+      const isNone = v === 'ไม่พบอาการข้างเคียงจากยา';
+      const isOther = v === 'อาการอื่นๆ (ระบุ)';
+      document.getElementById('se-other-wrap').style.display = isOther ? 'block' : 'none';
+      document.getElementById('se-time-wrap').style.display = (v && !isNone) ? 'block' : 'none';
+      document.getElementById('se-mgmt-wrap').style.display = (v && !isNone) ? 'block' : 'none';
+      if(v && !isNone){
+        const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('se-occurred-at').value = now.toISOString().slice(0,16);
+      }
+    });
+    document.getElementById('btn-save-se').addEventListener('click', saveSideEffect);
+  }
   tickCheckpoints();
 }
 
-// เก็บค่าจากช่องกรอกทั้งแถวเข้า memory (ไม่ยิง save ขึ้นเซิร์ฟเวอร์ — แค่เตรียมข้อมูลก่อนกดปุ่ม "บันทึก")
 function collectRowValues(which, idx){
   const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
   const cp = list[idx];
@@ -898,29 +920,36 @@ function collectRowValues(which, idx){
   });
 }
 
-async function saveSideEffects(){
+async function saveSideEffect(){
   const auth = getAuth();
   if(!auth){ openLogin(); return; }
-  const selected = Array.from(document.querySelectorAll('.se-checkbox:checked')).map(cb=>cb.value);
-  const none = document.getElementById('se-none').checked;
-  if(none) selected.push('ไม่พบอาการข้างเคียงจากยา');
-  const other = document.getElementById('se-other').value.trim();
-  const management = document.getElementById('se-management').value.trim();
-  currentEpisode.sideEffects = { selected, other, management };
+  const sel = document.getElementById('se-select').value;
+  if(!sel){ toast('กรุณาเลือกอาการก่อน'); return; }
+  const isNone = sel === 'ไม่พบอาการข้างเคียงจากยา';
+  const isOther = sel === 'อาการอื่นๆ (ระบุ)';
+  const effectText = isOther ? (document.getElementById('se-other-text').value.trim() || 'อาการอื่นๆ') : sel;
+  const occurredAt = isNone ? '' : document.getElementById('se-occurred-at').value;
+  const management = isNone ? '' : document.getElementById('se-management').value.trim();
   const entry = {
     recordId: currentEpisode.recordId, hadId: currentEpisode.hadId, hadName: currentEpisode.hadName,
     patientHN: currentEpisode.patientHN, patientName: currentEpisode.patientName, ward: currentEpisode.ward,
     startTime: currentEpisode.startTime, weight: currentEpisode.weight, doseInfo: currentEpisode.doseInfo,
-    checkpointLabel: 'อาการข้างเคียง', checkpointTime: new Date().toISOString(),
+    checkpointLabel: 'อาการข้างเคียง', checkpointTime: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
     bp:'', hr:'', rr:'', o2sat:'', temp:'',
-    otherValues: JSON.stringify({ sideEffects: selected, sideEffectOther: other, management }),
+    otherValues: JSON.stringify({ effect: effectText, management }),
     note: management,
     nurseName: currentEpisode.nurseName, preparedBy: currentEpisode.preparedBy||'', status:'in_progress'
   };
   try{
-    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveHadRecord', code: auth.code, entry})});
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveHadRecord', code: auth.code, entry, append:true})});
     const data = await res.json();
     if(!data.ok) throw new Error(data.error||'unknown');
+    currentEpisode.sideEffectLog.push({ effect: effectText, occurredAt: occurredAt ? fmtTime(new Date(occurredAt)) : '-', management });
+    document.getElementById('se-select').value = '';
+    document.getElementById('se-other-wrap').style.display='none';
+    document.getElementById('se-time-wrap').style.display='none';
+    document.getElementById('se-mgmt-wrap').style.display='none';
+    renderCheckpointTable();
     toast('บันทึกอาการข้างเคียงแล้ว');
   }catch(e){ toast('⚠️ บันทึกไม่สำเร็จ: '+e.message, 4000); }
 }
@@ -930,7 +959,7 @@ function addExtraCheckpoint(which){
   const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
   const increment = which === 'secondary'
     ? (parseInt(currentHadDrug.secondaryRecurrenceMinutes,10) || 480)
-    : (parseInt(currentHadDrug.recurrenceMinutes,10) || 30);
+    : (parseInt(currentHadDrug.recurrenceMinutes,10) || 120);
   const last = list[list.length-1];
   const nextOffset = (last ? last.offsetMin : 0) + increment;
   const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
@@ -939,29 +968,26 @@ function addExtraCheckpoint(which){
   renderCheckpointTable();
 }
 
-function ensureUpcomingCheckpoints(){
-  if(!currentEpisode || !currentHadDrug) return;
-  const now = new Date();
-  [['checkpoints','recurrenceMinutes',30],['secondaryCheckpoints','secondaryRecurrenceMinutes',480]].forEach(([listKey, recurKey, fallback])=>{
-    const list = currentEpisode[listKey];
-    if(!list || !list.length) return;
-    const recur = parseInt(currentHadDrug[recurKey],10) || (currentHadDrug[recurKey] ? fallback : null);
-    if(!recur) return;
-    const last = list[list.length-1];
-    const minutesUntilLast = (last.time - now)/60000;
-    if(minutesUntilLast < 30){
-      const nextOffset = last.offsetMin + recur;
-      const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
-      const label = listKey === 'secondaryCheckpoints' ? `I/O ${Math.round(nextOffset/60)} ชม.` : `${nextOffset} นาที (ต่อเนื่อง)`;
-      list.push({ label, offsetMin: nextOffset, time: t, saved:false, values:{} });
-      renderCheckpointTable();
-    }
-  });
+async function deleteCheckpointByIdx(which, idx){
+  if(!confirm('ยืนยันลบ checkpoint นี้?')) return;
+  const list = which === 'secondary' ? currentEpisode.secondaryCheckpoints : currentEpisode.checkpoints;
+  const cp = list[idx];
+  if(!cp) return;
+  if(cp.saved){
+    const auth = getAuth();
+    if(!auth){ openLogin(); return; }
+    try{
+      await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'deleteHadRecord', code: auth.code, recordId: currentEpisode.recordId, checkpointLabel: cp.label})});
+    }catch(e){ toast('⚠️ ลบออกจากระบบไม่สำเร็จ (ลบออกจากตารางที่เห็นแล้ว): '+e.message, 4000); }
+  }
+  list.splice(idx,1);
+  renderCheckpointTable();
+  toast('ลบ checkpoint แล้ว');
 }
+window.deleteCheckpointByIdx = deleteCheckpointByIdx;
 
 function tickCheckpoints(){
   if(!currentEpisode) return;
-  ensureUpcomingCheckpoints();
   const now = new Date();
   const groups = [['checkpoints','primary'], ['secondaryCheckpoints','secondary']];
   groups.forEach(([listKey, prefix])=>{
@@ -1097,7 +1123,6 @@ function resumeEpisode(recordId, rows){
   if(wardOpts.includes(first.ward)){ wardSel.value = first.ward; }
   else if(first.ward){ wardSel.value = 'อื่นๆ (ระบุ)'; document.getElementById('pt-ward-other').style.display='block'; document.getElementById('pt-ward-other').value = first.ward; }
   document.getElementById('pt-weight').value = first.weight || '';
-  // ขนาดยา: ถ้ามีหน่วยต่อท้ายที่ตรงกับ doseUnitHint ให้ตัดออกให้เหลือแค่ตัวเลขกลับเข้าช่อง
   let doseNum = first.doseInfo || '';
   if(had.doseUnitHint && doseNum.endsWith(had.doseUnitHint)) doseNum = doseNum.replace(had.doseUnitHint,'').trim();
   document.getElementById('pt-dose-number').value = doseNum;
@@ -1138,17 +1163,17 @@ function resumeEpisode(recordId, rows){
   const checkpoints = rebuildSeries(primaryStandard, primaryRows);
   const secondaryCheckpoints = rebuildSeries(secondaryStandard, secondaryRows);
 
-  const seRow = rows.filter(r=>r.checkpointLabel==='อาการข้างเคียง').sort((a,b)=> a.createdAt < b.createdAt ? 1 : -1)[0];
-  let sideEffects = { selected: [], other: '', management: '' };
-  if(seRow){
-    try{ const ov = JSON.parse(seRow.otherValues||'{}'); sideEffects = { selected: ov.sideEffects||[], other: ov.sideEffectOther||'', management: ov.management||'' }; }catch(e){}
-  }
+  const seRows = rows.filter(r=>r.checkpointLabel==='อาการข้างเคียง').sort((a,b)=> a.createdAt < b.createdAt ? -1 : 1);
+  const sideEffectLog = seRows.map(r=>{
+    let ov = {}; try{ ov = JSON.parse(r.otherValues||'{}'); }catch(e){}
+    return { effect: ov.effect||'', occurredAt: r.checkpointTime ? fmtTime(new Date(r.checkpointTime)) : '-', management: ov.management||'' };
+  });
 
   currentEpisode = {
     recordId, hadId: had.id, hadName: had.name,
     patientHN: first.patientHN, patientName: first.patientName, ward: first.ward,
     weight: first.weight, doseInfo: first.doseInfo, nurseName: first.nurseName, preparedBy: first.preparedBy||'',
-    startTime: first.startTime, checkpoints, secondaryCheckpoints, sideEffects
+    startTime: first.startTime, checkpoints, secondaryCheckpoints, sideEffectLog
   };
   document.getElementById('episode-status').textContent = `กำลังติดตามต่อ — เริ่มเวลา ${fmtTime(startTime)}`;
   renderCheckpointTable();
@@ -1194,12 +1219,12 @@ function showFocusNote(){
   }
   lines.push('');
   lines.push('   4) อาการข้างเคียง');
-  const se = currentEpisode.sideEffects || {selected:[],other:'',management:''};
-  if(se.selected.length){
-    lines.push('   พบ: ' + se.selected.join(', ') + (se.other ? ', '+se.other : ''));
-    if(se.management) lines.push('   การแก้ไข: ' + se.management);
+  if(currentEpisode.sideEffectLog && currentEpisode.sideEffectLog.length){
+    currentEpisode.sideEffectLog.forEach(s=>{
+      lines.push(`   - ${s.effect} (เวลา ${s.occurredAt})${s.management?(' | การแก้ไข: '+s.management):''}`);
+    });
   } else {
-    lines.push('   ไม่พบอาการข้างเคียงจากยา (ยังไม่ได้บันทึก หรือไม่พบอาการ)');
+    lines.push('   ยังไม่ได้บันทึกอาการข้างเคียง');
   }
   lines.push('');
   lines.push(`E: ผู้ป่วยได้รับยาต่อเนื่อง สัญญาณชีพ/ค่าที่ติดตามอยู่ในเกณฑ์ที่กำหนด ไม่พบ/พบ(ระบุ) อาการผิดปกติที่ต้องรายงานแพทย์`);
@@ -1213,6 +1238,7 @@ function showFocusNote(){
   };
 }
 document.getElementById('focus-close').addEventListener('click', ()=> document.getElementById('focus-overlay').classList.remove('show'));
+
 
 
 // ======================= HISTORY =======================
