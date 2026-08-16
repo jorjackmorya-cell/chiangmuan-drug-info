@@ -271,6 +271,7 @@
       <div class="info-banner" style="margin-bottom:0;">⚙️ ตั้งค่าตารางติดตามสด (ใช้ในแท็บ "ติดตามการให้ยา")</div>
       <label>ช่วงเวลาติดตามเริ่มต้น (นาทีหลังเริ่มยา คั่นด้วยจุลภาค)</label><input type="text" id="ed-checkpointMinutes" placeholder="0,15,30,45,60">
       <label>ติดตามต่อเนื่องทุกกี่นาทีหลังจากนั้น (เว้นว่างถ้าไม่มี)</label><input type="text" id="ed-recurrenceMinutes" placeholder="เช่น 240 = ทุก 4 ชม.">
+      <label>ตัวอย่างหน่วยขนาดยาของยานี้ (โชว์เป็น placeholder ในฟอร์มติดตาม)</label><input type="text" id="ed-doseUnitHint" placeholder="เช่น 40 mEq/hr หรือ 0.1 mcg/kg/min">
       <label>ช่องกรอกที่ใช้ในตารางติดตาม (คีย์คั่นด้วยจุลภาค — คลิกด้านล่างเพื่อเพิ่ม)</label>
       <input type="text" id="ed-monitoringFields" placeholder="bp,hr,rr,o2sat,temp,other,note">
       <div class="field-lib-chips" id="field-lib-chips"></div>
@@ -537,7 +538,7 @@ function openEdit(id){
   document.getElementById('ed-name').value = d ? d.name||'' : '';
   document.getElementById('ed-strength').value = d ? d.strength||'' : '';
   const fields = ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields',
+    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint',
     'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references'];
   fields.forEach(f=>{ document.getElementById('ed-'+f).value = d ? (d[f]||'') : ''; });
   document.getElementById('edit-msg').textContent = '';
@@ -553,7 +554,7 @@ document.getElementById('edit-save').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('edit-msg').textContent = 'กรุณากรอกชื่อยา'; return; }
   const entry = { id: editingId || undefined, name, strength: document.getElementById('ed-strength').value.trim() };
   ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields',
+   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint',
    'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references']
    .forEach(f=>{ entry[f] = document.getElementById('ed-'+f).value.trim(); });
   const btn = document.getElementById('edit-save');
@@ -629,7 +630,11 @@ function buildTrackForm(had){
         <div class="field"><label>ชื่อ-สกุลผู้ป่วย</label><input type="text" id="pt-name"></div>
         <div class="field"><label>หอผู้ป่วย/แผนก</label><input type="text" id="pt-ward" value="${escapeHtml(wardGuessFromRole(auth?auth.name:''))}"></div>
         <div class="field"><label>น้ำหนักตัว (กก.)</label><input type="number" id="pt-weight" step="0.1"></div>
-        <div class="field"><label>ขนาดยาที่ใช้จริง</label><input type="text" id="pt-dose" placeholder="เช่น 0.1 mcg/kg/min"></div>
+        <div class="field">
+          <label>ขนาดยาที่ใช้จริง${had.doseUnitHint ? ` <span style="color:var(--teal);font-weight:400;">(หน่วย: ${escapeHtml(had.doseUnitHint)})</span>` : ''}</label>
+          <input type="text" id="pt-dose" placeholder="${escapeHtml(had.doseUnitHint ? 'เช่น '+had.doseUnitHint : 'เช่น 0.1 mcg/kg/min')}">
+        </div>
+        <div class="field"><label>พยาบาลผู้เตรียมยา</label><input type="text" id="pt-prepared" placeholder="ชื่อผู้ผสม/เตรียมยา"></div>
         <div class="field"><label>ชื่อพยาบาลผู้บันทึก</label><input type="text" id="pt-nurse" value="${escapeHtml(auth?auth.name:'')}"></div>
         <div class="field"><label>เวลาเริ่มให้ยา</label><input type="datetime-local" id="pt-start"></div>
       </div>
@@ -684,6 +689,7 @@ async function startEpisode(had){
     weight: document.getElementById('pt-weight').value.trim(),
     doseInfo: document.getElementById('pt-dose').value.trim(),
     nurseName: document.getElementById('pt-nurse').value.trim(),
+    preparedBy: document.getElementById('pt-prepared').value.trim(),
     startTime: startTime.toISOString(),
     checkpoints: buildCheckpointList(had, startTime)
   };
@@ -844,7 +850,7 @@ async function saveCheckpointRow(cp, status, silent){
     bp: core.bp||'', hr: core.hr||'', rr: core.rr||'', o2sat: core.o2sat||'', temp: core.temp||'',
     otherValues: JSON.stringify(extra),
     note: (cp.values && cp.values.note) || '',
-    nurseName: currentEpisode.nurseName, status
+    nurseName: currentEpisode.nurseName, preparedBy: currentEpisode.preparedBy||'', status
   };
   try{
     const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveHadRecord', code: auth.code, entry})});
@@ -940,6 +946,7 @@ function resumeEpisode(recordId, rows){
   document.getElementById('pt-weight').value = first.weight || '';
   document.getElementById('pt-dose').value = first.doseInfo || '';
   document.getElementById('pt-nurse').value = first.nurseName || '';
+  document.getElementById('pt-prepared').value = first.preparedBy || '';
   const startTime = new Date(first.startTime);
   const startLocal = new Date(startTime.getTime() - startTime.getTimezoneOffset()*60000);
   document.getElementById('pt-start').value = startLocal.toISOString().slice(0,16);
@@ -971,7 +978,7 @@ function resumeEpisode(recordId, rows){
   currentEpisode = {
     recordId, hadId: had.id, hadName: had.name,
     patientHN: first.patientHN, patientName: first.patientName, ward: first.ward,
-    weight: first.weight, doseInfo: first.doseInfo, nurseName: first.nurseName,
+    weight: first.weight, doseInfo: first.doseInfo, nurseName: first.nurseName, preparedBy: first.preparedBy||'',
     startTime: first.startTime, checkpoints
   };
   document.getElementById('episode-status').textContent = `กำลังติดตามต่อ — เริ่มเวลา ${fmtTime(startTime)}`;
@@ -993,6 +1000,7 @@ function showFocusNote(){
   lines.push('I: 1) ก่อนให้ยา');
   (had.administrationNotes||had.preparation||'-').split(/[;\n]/).map(s=>s.trim()).filter(Boolean).forEach(s=> lines.push('   - '+s));
   lines.push(`   เริ่มให้ยาเวลา ${fmtTime(new Date(currentEpisode.startTime))} ขนาดยา ${currentEpisode.doseInfo||'-'} น้ำหนักตัว ${currentEpisode.weight||'-'} กก.`);
+  lines.push(`   เตรียม/ผสมยาโดย ${currentEpisode.preparedBy||'-'}`);
   lines.push('');
   lines.push('   2) หลังให้ยา — ติดตามตามคู่มือ HAD');
   const fieldObjs = getFieldKeys(had);
@@ -1059,7 +1067,7 @@ async function searchHistory(){
       return `<div class="record-card">
         <h4>${escapeHtml(first.hadName)} — HN ${escapeHtml(first.patientHN)} ${escapeHtml(first.patientName||'')}
           <span class="status-chip ${latest.status||'in_progress'}">${latest.status==='completed'?'เสร็จสิ้น':'กำลังติดตาม'}</span></h4>
-        <div class="meta">หอ/แผนก: ${escapeHtml(first.ward||'-')} · เริ่มให้ยา: ${first.startTime?new Date(first.startTime).toLocaleString('th-TH'):'-'} · บันทึกโดย: ${escapeHtml(first.nurseName||'-')}</div>
+        <div class="meta">หอ/แผนก: ${escapeHtml(first.ward||'-')} · เริ่มให้ยา: ${first.startTime?new Date(first.startTime).toLocaleString('th-TH'):'-'} · บันทึกโดย: ${escapeHtml(first.nurseName||'-')} · เตรียมยาโดย: ${escapeHtml(first.preparedBy||'-')}</div>
         <table><thead><tr><th>Checkpoint</th><th>เวลา</th><th>BP</th><th>HR</th><th>RR</th><th>O2</th><th>ค่าอื่น</th><th>หมายเหตุ</th></tr></thead>
         <tbody>${rowsHtml}</tbody></table>
       </div>`;
