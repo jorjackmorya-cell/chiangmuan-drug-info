@@ -266,7 +266,9 @@
       <label>วิธีผสม/เจือจางยา</label><textarea id="ed-preparation"></textarea>
       <label>ข้อควรระวังการให้ยา (ใช้เป็นหัวข้อ "ก่อนให้ยา" ใน Focus Note)</label><textarea id="ed-administrationNotes"></textarea>
       <label>การติดตาม</label><textarea id="ed-monitoringParameters"></textarea>
-      <label>อาการข้างเคียงที่ต้องสังเกต (ใช้เป็นหัวข้อ "สังเกตอาการข้างเคียง" ใน Focus Note)</label><textarea id="ed-adverseEffects"></textarea>
+      <label>อาการข้างเคียงที่ต้องสังเกต (ใช้เป็นหัวข้อ "สังเกตอาการข้างเคียง" ใน Focus Note — ข้อความยาวอธิบายละเอียด)</label><textarea id="ed-adverseEffects"></textarea>
+      <label>รายชื่ออาการข้างเคียงสั้นๆ สำหรับ dropdown ในแท็บติดตาม (คั่นด้วยจุลภาค — เฉพาะยานี้)</label><input type="text" id="ed-sideEffectOptions" placeholder="เช่น Bradycardia,Hypotension,Cardiac arrhythmias">
+      <div class="hint">ว่าง = ใช้ชุดเริ่มต้นทั่วไป (ท้องเสีย, คลื่นไส้, อาเจียน ฯลฯ — อาจไม่ตรงกับยานี้)</div>
       <hr style="margin:16px 0;border:none;border-top:1px solid var(--line);">
       <div class="info-banner" style="margin-bottom:0;">⚙️ ตั้งค่าตารางติดตามสด (ใช้ในแท็บ "ติดตามการให้ยา")</div>
       <label>ช่วงเวลาติดตามเริ่มต้น (นาทีหลังเริ่มยา คั่นด้วยจุลภาค)</label><input type="text" id="ed-checkpointMinutes" placeholder="0,15,30,45,60">
@@ -563,7 +565,7 @@ function openEdit(id){
   document.getElementById('ed-name').value = d ? d.name||'' : '';
   document.getElementById('ed-strength').value = d ? d.strength||'' : '';
   const fields = ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes',
+    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes','sideEffectOptions',
     'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references'];
   fields.forEach(f=>{ document.getElementById('ed-'+f).value = d ? (d[f]||'') : ''; });
   document.getElementById('edit-msg').textContent = '';
@@ -579,7 +581,7 @@ document.getElementById('edit-save').addEventListener('click', async ()=>{
   if(!name){ document.getElementById('edit-msg').textContent = 'กรุณากรอกชื่อยา'; return; }
   const entry = { id: editingId || undefined, name, strength: document.getElementById('ed-strength').value.trim() };
   ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
-   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes',
+   'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes','sideEffectOptions',
    'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references']
    .forEach(f=>{ entry[f] = document.getElementById('ed-'+f).value.trim(); });
   const btn = document.getElementById('edit-save');
@@ -676,10 +678,8 @@ function buildTrackForm(had){
         <div class="field"><label>น้ำหนักตัว (กก.)</label><input type="number" id="pt-weight" step="0.1"></div>
         <div class="field">
           <label>ขนาดยาที่ใช้จริง</label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input type="text" id="pt-dose-number" placeholder="เช่น 40" style="flex:1;">
-            <span style="font-size:13px;color:var(--ink-soft);white-space:nowrap;">${escapeHtml(had.doseUnitHint||'')}</span>
-          </div>
+          <input type="text" id="pt-dose-number" placeholder="เช่น 40">
+          ${had.doseUnitHint ? `<div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">หน่วย: ${escapeHtml(had.doseUnitHint)}</div>` : ''}
         </div>
         <div class="field"><label>พยาบาลผู้เตรียมยา</label><input type="text" id="pt-prepared" placeholder="ชื่อผู้ผสม/เตรียมยา"></div>
         <div class="field"><label>ชื่อพยาบาลผู้บันทึก</label><input type="text" id="pt-nurse" value="${escapeHtml(auth?auth.name:'')}"></div>
@@ -729,7 +729,7 @@ function buildCheckpointList(had, startTime){
 }
 function buildSecondaryCheckpointList(had, startTime){
   if(!had.secondaryFields || !had.secondaryFields.trim()) return [];
-  return [{ label:'I/O เริ่มต้น', offsetMin:0, time:new Date(startTime), saved:false, values:{} }];
+  return [{ label:'การติดตามเริ่มต้น', offsetMin:0, time:new Date(startTime), saved:false, values:{} }];
 }
 
 async function startEpisode(had){
@@ -813,7 +813,10 @@ function renderCheckpointTable(){
   const recurNote = currentHadDrug.recurrenceMinutes ? `<div class="autosave-hint">กด "+เพิ่มช่วงเวลาถัดไป" เพื่อเพิ่มรอบถัดไปเอง (ทุก ${currentHadDrug.recurrenceMinutes} นาที) — ระบบไม่เพิ่มให้อัตโนมัติ</div>` : '';
   const secondaryRecurNote = currentHadDrug.secondaryRecurrenceMinutes ? `<div class="autosave-hint">กด "+เพิ่มช่วงเวลาถัดไป" เพื่อเพิ่มรอบถัดไปเอง (ทุก ${currentHadDrug.secondaryRecurrenceMinutes} นาที — Serum K+ กรอกได้อิสระตามที่แพทย์สั่งตรวจ ไม่ผูกกับรอบนี้)</div>` : '';
 
-  const seOptions = [...SIDE_EFFECT_OPTIONS, 'อาการอื่นๆ (ระบุ)', 'ไม่พบอาการข้างเคียงจากยา'];
+  const drugSideEffects = (currentHadDrug.sideEffectOptions && currentHadDrug.sideEffectOptions.trim())
+    ? currentHadDrug.sideEffectOptions.split(',').map(s=>s.trim()).filter(Boolean)
+    : SIDE_EFFECT_OPTIONS; // ยาที่ยังไม่ได้ตั้งค่าเฉพาะ ใช้ชุดเริ่มต้นทั่วไปไปก่อน
+  const seOptions = [...drugSideEffects, 'อาการอื่นๆ (ระบุ)', 'ไม่พบอาการข้างเคียงจากยา'];
   const seLogHtml = (currentEpisode.sideEffectLog||[]).length ? `
     <div style="margin:10px 0;font-size:12.5px;">
       <b>บันทึกไว้แล้ว:</b>
@@ -841,8 +844,7 @@ function renderCheckpointTable(){
 
       ${secondaryFields.length ? `
       <hr style="border:none;border-top:1px solid var(--line);margin:22px 0 16px;">
-      <h4 style="margin:0 0 4px;font-size:14px;color:var(--teal-deep);">I/O และ Serum K+</h4>
-      <div class="sub">แยกความถี่จากตาราง Vital Sign — กด "บันทึก" เองเช่นกัน (กดซ้ำ = ทับค่าเดิม)</div>
+      <h4 style="margin:0 0 4px;font-size:14px;color:var(--teal-deep);">ส่วนของการติดตามเฉพาะ</h4>
       ${secondaryRecurNote}
       <div style="overflow-x:auto;">
       <table class="cp-table">
@@ -851,7 +853,7 @@ function renderCheckpointTable(){
       </table>
       </div>
       <div style="margin-top:12px;">
-        <button class="ghost small" id="btn-add-cp-secondary">+ เพิ่มช่วงเวลาถัดไป (I/O)${currentHadDrug.secondaryRecurrenceMinutes ? ' ทุก '+currentHadDrug.secondaryRecurrenceMinutes+' นาที' : ''}</button>
+        <button class="ghost small" id="btn-add-cp-secondary">+ เพิ่มช่วงเวลาถัดไป${currentHadDrug.secondaryRecurrenceMinutes ? ' ทุก '+currentHadDrug.secondaryRecurrenceMinutes+' นาที' : ''}</button>
       </div>` : ''}
 
       <hr style="border:none;border-top:1px solid var(--line);margin:22px 0 16px;">
@@ -963,7 +965,7 @@ function addExtraCheckpoint(which){
   const last = list[list.length-1];
   const nextOffset = (last ? last.offsetMin : 0) + increment;
   const t = new Date(new Date(currentEpisode.startTime).getTime() + nextOffset*60000);
-  const label = which === 'secondary' ? `I/O ${Math.round(nextOffset/60)} ชม.` : `${nextOffset} นาที (ต่อเนื่อง)`;
+  const label = which === 'secondary' ? `${Math.round(nextOffset/60)} ชม. (ต่อเนื่อง)` : `${nextOffset} นาที (ต่อเนื่อง)`;
   list.push({ label, offsetMin: nextOffset, time: t, saved:false, values:{} });
   renderCheckpointTable();
 }
@@ -1157,8 +1159,11 @@ function resumeEpisode(recordId, rows){
 
   const primaryStandard = buildCheckpointList(had, startTime);
   const secondaryStandard = buildSecondaryCheckpointList(had, startTime);
-  const secondaryRows = rows.filter(r=> (r.checkpointLabel||'').startsWith('I/O'));
-  const primaryRows = rows.filter(r=> !(r.checkpointLabel||'').startsWith('I/O') && r.checkpointLabel !== 'อาการข้างเคียง' && r.checkpointLabel !== 'สิ้นสุดการให้ยา');
+  const secondaryStandardLabels = secondaryStandard.map(cp=>cp.label);
+  // แยกแถว primary/secondary จาก label: ตรงกับ label มาตรฐานของ secondary เป๊ะๆ หรือเป็น checkpoint ที่เพิ่มเองแบบ "X ชม. (ต่อเนื่อง)" (secondary ใช้หน่วยชั่วโมง, primary ใช้หน่วยนาทีเสมอ)
+  const isSecondaryLabel = (label)=> secondaryStandardLabels.includes(label) || /ชม\.\s*\(ต่อเนื่อง\)$/.test(label||'');
+  const secondaryRows = rows.filter(r=> isSecondaryLabel(r.checkpointLabel));
+  const primaryRows = rows.filter(r=> !isSecondaryLabel(r.checkpointLabel) && r.checkpointLabel !== 'อาการข้างเคียง' && r.checkpointLabel !== 'สิ้นสุดการให้ยา');
 
   const checkpoints = rebuildSeries(primaryStandard, primaryRows);
   const secondaryCheckpoints = rebuildSeries(secondaryStandard, secondaryRows);
@@ -1209,7 +1214,7 @@ function showFocusNote(){
   });
   if(currentEpisode.secondaryCheckpoints && currentEpisode.secondaryCheckpoints.length){
     lines.push('');
-    lines.push('   3) I/O');
+    lines.push('   3) การติดตามเฉพาะ');
     const secFieldObjs = getFieldKeys(had, 'secondary');
     currentEpisode.secondaryCheckpoints.filter(cp=>cp.saved).forEach(cp=>{
       const v = cp.values||{};
