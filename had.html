@@ -287,6 +287,9 @@
       <label>เภสัชจลนศาสตร์ (Onset/Peak/Duration)</label><textarea id="ed-pharmacokinetics"></textarea>
       <label>ความคลาดเคลื่อนที่พบบ่อย</label><textarea id="ed-commonErrors"></textarea>
       <label>เอกสารอ้างอิง</label><textarea id="ed-references"></textarea>
+      <label>ลิงก์แบบฟอร์ม PDF เฉพาะยานี้ (ถ้ามี — เช่น แบบบันทึกที่มีตารางคำนวณ dose/rate)</label>
+      <input type="text" id="ed-referenceFormUrl" placeholder="https://.../forms/ชื่อไฟล์.pdf">
+      <div class="hint">ว่าง = ไม่แสดงปุ่ม "ดาวน์โหลด/พิมพ์แบบฟอร์ม PDF" ในแท็บคู่มือและแท็บติดตาม</div>
     </div>
     <div class="modal-msg" id="edit-msg"></div>
     <div style="display:flex;gap:8px;margin-top:14px;">
@@ -329,7 +332,7 @@ const FIELD_LIBRARY = {
   serumK:        { label:'Serum K+',        placeholder:'4.0',    type:'text' },
   serumCa:       { label:'Serum Ca',        placeholder:'9.0',    type:'text' },
   painScore:     { label:'Pain score',      placeholder:'0-10',   type:'text' },
-  sedationScore: { label:'Sedation score',  placeholder:'0-3',    type:'text' },
+  sedationScore: { label:'Sedation score',  type:'select', options:['','1-ไม่ง่วงเลย','2-ง่วงเล็กน้อย ปลุกตื่นง่าย ตอบคำถามได้เร็ว','3-ง่วงปานกลาง ปลุกตื่นง่าย อยากหลับมากกว่าคุยด้วย','4-ง่วงมาก ปลุกตื่นยาก ไม่โต้ตอบ','S-Sleep (หลับ ตื่นง่ายเมื่อมีสิ่งกระตุ้น)'] },
   pupil:         { label:'รูม่านตา',        placeholder:'3mm',    type:'text' },
   ivSite:        { label:'IV site',         type:'select', options:['','ปกติ','บวม/แดง/รั่วซึม'] },
   pumpCheck:     { label:'ตรวจสอบ Infusion pump', type:'select', options:['','ตรวจสอบแล้ว','ไม่ตรวจสอบ'] },
@@ -501,6 +504,7 @@ function renderGuide(){
         </div>
         <div class="row-actions">
           <button class="ghost small track-btn" data-id="${escapeHtml(d.id)}">📝 ติดตามยานี้</button>
+          ${d.referenceFormUrl ? `<button class="ghost small pdf-btn" data-url="${escapeHtml(d.referenceFormUrl)}">📄 แบบฟอร์ม PDF</button>` : ''}
           ${getAuth() ? `<button class="ghost small edit-btn" data-id="${escapeHtml(d.id)}">แก้ไข</button>` : ''}
         </div>
       </div>
@@ -521,6 +525,7 @@ function renderGuide(){
     });
   });
   container.querySelectorAll('.edit-btn').forEach(btn=> btn.addEventListener('click', (e)=>{ e.stopPropagation(); openEdit(btn.dataset.id); }));
+  container.querySelectorAll('.pdf-btn').forEach(btn=> btn.addEventListener('click', (e)=>{ e.stopPropagation(); window.open(btn.dataset.url, '_blank'); }));
   container.querySelectorAll('.track-btn').forEach(btn=> btn.addEventListener('click', (e)=>{
     e.stopPropagation();
     document.querySelector('.tabbtn[data-tab="track"]').click();
@@ -566,7 +571,7 @@ function openEdit(id){
   document.getElementById('ed-strength').value = d ? d.strength||'' : '';
   const fields = ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
     'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes','sideEffectOptions',
-    'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references'];
+    'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references','referenceFormUrl'];
   fields.forEach(f=>{ document.getElementById('ed-'+f).value = d ? (d[f]||'') : ''; });
   document.getElementById('edit-msg').textContent = '';
   document.getElementById('edit-delete').style.display = id ? 'block' : 'none';
@@ -582,7 +587,7 @@ document.getElementById('edit-save').addEventListener('click', async ()=>{
   const entry = { id: editingId || undefined, name, strength: document.getElementById('ed-strength').value.trim() };
   ['pregnancyCategory','indication','doseAdult','dosePediatric','preparation','administrationNotes',
    'monitoringParameters','adverseEffects','checkpointMinutes','recurrenceMinutes','monitoringFields','doseUnitHint','secondaryFields','secondaryRecurrenceMinutes','sideEffectOptions',
-   'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references']
+   'reportToPhysician','antidoteManagement','pharmacokinetics','commonErrors','references','referenceFormUrl']
    .forEach(f=>{ entry[f] = document.getElementById('ed-'+f).value.trim(); });
   const btn = document.getElementById('edit-save');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
@@ -663,6 +668,7 @@ function buildTrackForm(had){
     <div class="form-card">
       <h3>ข้อมูลผู้ป่วยและการให้ยา — ${escapeHtml(had.name)}</h3>
       <div class="sub">${escapeHtml(had.strength||'')}</div>
+      ${had.referenceFormUrl ? `<button class="ghost small" id="btn-pdf-form" style="margin-top:8px;">📄 ดาวน์โหลด/พิมพ์แบบฟอร์ม PDF (สำหรับคำนวณ Dose/Rate)</button>` : ''}
       ${!hasCustom ? `<div class="info-banner">ℹ️ ยานี้ยังไม่ได้ตั้งค่าตารางติดตามเฉพาะทาง ระบบใช้ชุดค่าเริ่มต้น (BP/HR/RR/O2/Temp) ไปก่อน — แจ้งเภสัชกรเพื่อปรับให้ตรงกับคู่มือ HAD ของยานี้ได้ที่ปุ่ม "แก้ไข" ในแท็บคู่มือ</div>` : ''}
       <div class="field-grid">
         <div class="field"><label>HN ผู้ป่วย</label><input type="text" id="pt-hn"></div>
@@ -708,6 +714,9 @@ function buildTrackForm(had){
     document.getElementById('pt-ward-other').style.display = (e.target.value === 'อื่นๆ (ระบุ)') ? 'block' : 'none';
   });
   document.getElementById('btn-start-episode').addEventListener('click', ()=> startEpisode(had));
+  if(had.referenceFormUrl){
+    document.getElementById('btn-pdf-form').addEventListener('click', ()=> window.open(had.referenceFormUrl, '_blank'));
+  }
   if(tickTimer) clearInterval(tickTimer);
 }
 
@@ -872,7 +881,7 @@ function renderCheckpointTable(){
           <label>ระบุอาการอื่นๆ</label><input type="text" id="se-other-text">
         </div>
         <div class="field" id="se-time-wrap" style="display:none;">
-          <label>เวลาที่เกิดอาการ</label><input type="datetime-local" id="se-occurred-at">
+          <label id="se-time-label">เวลาที่เกิดอาการ</label><input type="datetime-local" id="se-occurred-at">
         </div>
       </div>
       <div class="field" id="se-mgmt-wrap" style="display:none;margin-top:8px;">
@@ -901,9 +910,10 @@ function renderCheckpointTable(){
       const isNone = v === 'ไม่พบอาการข้างเคียงจากยา';
       const isOther = v === 'อาการอื่นๆ (ระบุ)';
       document.getElementById('se-other-wrap').style.display = isOther ? 'block' : 'none';
-      document.getElementById('se-time-wrap').style.display = (v && !isNone) ? 'block' : 'none';
+      document.getElementById('se-time-wrap').style.display = v ? 'block' : 'none';
+      document.getElementById('se-time-label').textContent = isNone ? 'เวลาที่ตรวจติดตาม' : 'เวลาที่เกิดอาการ';
       document.getElementById('se-mgmt-wrap').style.display = (v && !isNone) ? 'block' : 'none';
-      if(v && !isNone){
+      if(v){
         const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('se-occurred-at').value = now.toISOString().slice(0,16);
       }
@@ -930,7 +940,7 @@ async function saveSideEffect(){
   const isNone = sel === 'ไม่พบอาการข้างเคียงจากยา';
   const isOther = sel === 'อาการอื่นๆ (ระบุ)';
   const effectText = isOther ? (document.getElementById('se-other-text').value.trim() || 'อาการอื่นๆ') : sel;
-  const occurredAt = isNone ? '' : document.getElementById('se-occurred-at').value;
+  const occurredAt = document.getElementById('se-occurred-at').value;
   const management = isNone ? '' : document.getElementById('se-management').value.trim();
   const entry = {
     recordId: currentEpisode.recordId, hadId: currentEpisode.hadId, hadName: currentEpisode.hadName,
@@ -950,6 +960,7 @@ async function saveSideEffect(){
     document.getElementById('se-select').value = '';
     document.getElementById('se-other-wrap').style.display='none';
     document.getElementById('se-time-wrap').style.display='none';
+    document.getElementById('se-time-label').textContent = 'เวลาที่เกิดอาการ';
     document.getElementById('se-mgmt-wrap').style.display='none';
     renderCheckpointTable();
     toast('บันทึกอาการข้างเคียงแล้ว');
