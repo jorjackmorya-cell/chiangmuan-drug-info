@@ -162,7 +162,7 @@
 
   <div class="search-bar">
     <input type="text" id="search-input" placeholder="🔍 พิมพ์ชื่อยาเพื่อค้นหา...">
-    <div class="search-hint" id="search-hint">พิมพ์ชื่อยาเพื่อดูขนาดยาที่คำนวณได้ — ตอนนี้มีข้อมูลยาในระบบ <span id="drug-count">…</span> รายการ</div>
+    <div class="search-hint" id="search-hint">พิมพ์ชื่อยาเพื่อดูขนาดยาที่คำนวณได้ — มีข้อมูลยาในระบบทั้งหมด <span id="drug-count">…</span> รายการ</div>
   </div>
 
   <div class="admin-bar" id="admin-bar" style="display:none;">
@@ -461,14 +461,16 @@ function renderList(){
   const q = document.getElementById('search-input').value.trim().toLowerCase();
   const container = document.getElementById('drug-results');
   const empty = document.getElementById('list-empty');
-  let list = allPediatric;
-  if(q){
-    list = list.filter(d => (d.name||'').toLowerCase().includes(q) || (d.tradeName||'').toLowerCase().includes(q));
+  if(!q){
+    container.innerHTML = '';
+    empty.style.display = 'none';
+    return;
   }
+  const list = allPediatric.filter(d => (d.name||'').toLowerCase().includes(q) || (d.tradeName||'').toLowerCase().includes(q));
   if(!list.length){
     container.innerHTML = '';
     empty.style.display = 'block';
-    empty.textContent = allPediatric.length ? 'ไม่พบยาที่ค้นหา' : 'ยังไม่มีข้อมูลยาเด็กในระบบ';
+    empty.textContent = 'ไม่พบยาที่ค้นหา';
     return;
   }
   empty.style.display = 'none';
@@ -487,6 +489,13 @@ function renderList(){
     } else if(d.ageWarning){
       ageWarnHtml = `<div class="age-warn">⚠️ ${escapeHtml(d.ageWarning)}</div>`;
     }
+
+    const doseMin = parseFloat(d.doseMin), doseMax = parseFloat(d.doseMax);
+    const basisLabel = d.doseBasis === 'perDay' ? 'mg/kg/วัน' : 'mg/kg/ครั้ง';
+    const doseRangeText = !isNaN(doseMin) ? (doseMin === doseMax ? `${fmtNum(doseMin)} ${basisLabel}` : `${fmtNum(doseMin)}–${fmtNum(doseMax)} ${basisLabel}`) : '';
+    const recommendedDoseHtml = doseRangeText
+      ? `<div class="detail-row"><b>ขนาดแนะนำ:</b> ${escapeHtml(doseRangeText)} วันละ ${escapeHtml(d.frequencyPerDay||'-')} ครั้ง</div>`
+      : '';
 
     let resultHtml;
     if(!weight){
@@ -515,10 +524,10 @@ function renderList(){
       </div>
       ${ageWarnHtml}
       ${resultHtml}
-      <div class="drug-detail" style="display:${d.indication||d.notes||d.references?'block':'none'};">
+      <div class="drug-detail" style="display:${d.indication||d.notes||recommendedDoseHtml?'block':'none'};">
+        ${recommendedDoseHtml}
         ${d.indication ? `<div class="detail-row"><b>ข้อบ่งใช้:</b> ${escapeHtml(d.indication)}</div>` : ''}
         ${d.notes ? `<div class="detail-row"><b>หมายเหตุ:</b> ${escapeHtml(d.notes)}</div>` : ''}
-        ${d.references ? `<div class="detail-row" style="color:var(--ink-faint);font-size:12px;"><b>อ้างอิง:</b> ${escapeHtml(d.references)}</div>` : ''}
       </div>
     </div>`;
   }).join('');
