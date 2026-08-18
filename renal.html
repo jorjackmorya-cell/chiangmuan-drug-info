@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ปรับขนาดยาตามไต — ศูนย์ข้อมูลยา รพ.เชียงม่วน</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#114F29">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#20302E; --ink-soft:#4B615D; --ink-faint:#93A398; --paper:#F0F3EF; --card:#FFFFFF; --line:#D8E1DC;
+    --teal:#0F4C4C; --teal-deep:#0A3838; --teal-soft:#E4EEEC;
+    --amber:#C97B3D; --amber-soft:#F6E8D8;
+    --danger:#B5473A; --danger-soft:#F5E1DE;
+    --good:#3D7A5E; --good-soft:#DEEBE3;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Sarabun',sans-serif;background:var(--paper);color:var(--ink);}
+  .app{max-width:1140px;margin:0 auto;padding:24px 20px 80px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  .org-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .eyebrow{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:#5C7A8A;font-weight:600;margin-bottom:4px;}
+  h1{font-size:25px;font-weight:700;margin:0;color:var(--teal-deep);}
+  .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);text-decoration:none;font-size:13.5px;font-weight:600;margin-bottom:16px;}
+
+  .warn-banner{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:12.5px;
+    margin-bottom:18px;display:flex;gap:8px;align-items:flex-start;line-height:1.6;}
+
+  /* ---- calculator card ---- */
+  .calc-card{background:var(--card);border:2px solid #5C7A8A;border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;
+    position:sticky;top:12px;z-index:40;}
+  .calc-card h3{margin:0 0 12px;font-size:15.5px;color:var(--teal-deep);}
+  .calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;align-items:end;}
+  .calc-field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:500;}
+  .calc-field input, .calc-field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+    font-family:inherit;font-size:15px;background:#fff;}
+
+  .result-grid{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+  .result-box{padding:12px 14px;background:var(--teal-soft);border-radius:8px;}
+  .result-box .label{font-size:11.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .result-box .val{font-size:20px;font-weight:700;color:var(--teal-deep);}
+  .result-box .sub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .result-box.stage-normal{background:var(--good-soft);}
+  .result-box.stage-normal .val{color:var(--good);}
+  .result-box.stage-mild{background:var(--amber-soft);}
+  .result-box.stage-mild .val{color:#6E4116;}
+  .result-box.stage-severe{background:var(--danger-soft);}
+  .result-box.stage-severe .val{color:var(--danger);}
+  .no-result{padding:12px 14px;background:var(--paper);border-radius:8px;color:var(--ink-faint);font-size:13px;text-align:center;}
+
+  .search-bar{margin-bottom:16px;}
+  .search-bar input{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-family:inherit;
+    font-size:15px;background:#fff;}
+  .search-hint{font-size:12px;color:var(--ink-faint);margin-top:6px;}
+
+  .drug-results{display:flex;flex-direction:column;gap:10px;}
+  .drug-item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;}
+  .drug-item h3{margin:0;font-size:16px;color:var(--teal-deep);}
+  .drug-item .strength{font-size:13px;color:var(--ink-soft);font-weight:400;}
+  .drug-item .indication{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+  .renal-box{margin-top:12px;padding:14px 16px;background:#EAF0F2;border-left:3px solid #5C7A8A;border-radius:8px;}
+  .renal-box .renal-label{font-size:11.5px;font-weight:700;color:#3E5A68;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+  .renal-box .renal-text{font-size:13.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap;}
+  .renal-box.empty .renal-text{color:var(--ink-faint);font-style:italic;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+
+  @media(max-width:600px){
+    .calc-card{position:static;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="org-line">กลุ่มงานเภสัชกรรมและคุ้มครองผู้บริโภค โรงพยาบาลเชียงม่วน</div>
+      <div class="eyebrow">Renal Dose Adjustment</div>
+      <h1>🫘 ปรับขนาดยาตามไต</h1>
+    </div>
+  </header>
+
+  <a href="index.html" class="back-link">← กลับหน้ารวมศูนย์ข้อมูลยา</a>
+
+  <div class="warn-banner">
+    ⚠️ เครื่องมือนี้คำนวณ <b>eGFR/CrCl เท่านั้น</b> และแสดงข้อมูลอ้างอิงการปรับขนาดยาที่บันทึกไว้ในระบบ —
+    <b>ไม่ได้เลือกขนาดยาให้อัตโนมัติ</b> แพทย์/เภสัชกรต้องเป็นผู้พิจารณาและเลือกขนาดยาที่เหมาะสมด้วยดุลยพินิจทางคลินิกเสมอ
+  </div>
+
+  <div class="calc-card">
+    <h3>1. คำนวณ eGFR / Creatinine Clearance</h3>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>เพศ</label>
+        <select id="in-sex">
+          <option value="">— เลือก —</option>
+          <option value="M">ชาย</option>
+          <option value="F">หญิง</option>
+        </select>
+      </div>
+      <div class="calc-field">
+        <label>อายุ (ปี)</label>
+        <input type="number" id="in-age" min="0" max="120" placeholder="เช่น 65">
+      </div>
+      <div class="calc-field">
+        <label>น้ำหนักตัว (กก.)</label>
+        <input type="number" id="in-weight" step="0.1" min="0" placeholder="เช่น 60">
+      </div>
+      <div class="calc-field">
+        <label>ส่วนสูง (ซม., ไม่บังคับ)</label>
+        <input type="number" id="in-height" step="0.1" min="0" placeholder="เช่น 165">
+      </div>
+      <div class="calc-field">
+        <label>Serum Creatinine (mg/dL)</label>
+        <input type="number" id="in-scr" step="0.01" min="0" placeholder="เช่น 1.1">
+      </div>
+    </div>
+    <div class="result-grid" id="result-grid">
+      <div class="no-result">กรอกข้อมูลให้ครบเพื่อดูผลการคำนวณ</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="🔍 พิมพ์ชื่อยาเพื่อดูข้อมูลการปรับขนาดตามไต...">
+    <div class="search-hint" id="search-hint">พิมพ์ชื่อยาเพื่อค้นหา — มีข้อมูลยาในระบบทั้งหมด <span id="drug-count">…</span> รายการ</div>
+  </div>
+
+  <div class="drug-results" id="drug-results"></div>
+  <div class="empty-state" id="empty-state" style="display:none;">ไม่พบยาที่ค้นหา</div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyToHBwKzpSEjNvuZdjWvUrqMcOeIlwRRlA0iVoBh1xzdRVCSlMKXnY_MqBz0HhGEqtRg/exec';
+let allDrugs = [];
+
+// ---- eGFR (CKD-EPI 2021, race-free) + CrCl (Cockcroft-Gault) ----
+function computeRenal(){
+  const sex = document.getElementById('in-sex').value;
+  const age = parseFloat(document.getElementById('in-age').value);
+  const weight = parseFloat(document.getElementById('in-weight').value);
+  const heightCm = parseFloat(document.getElementById('in-height').value);
+  const scr = parseFloat(document.getElementById('in-scr').value);
+  const grid = document.getElementById('result-grid');
+
+  if(!sex || !age || !weight || !scr || age<=0 || weight<=0 || scr<=0){
+    grid.innerHTML = '<div class="no-result">กรอกข้อมูลให้ครบ (เพศ, อายุ, น้ำหนัก, Serum Creatinine) เพื่อดูผลการคำนวณ</div>';
+    return;
+  }
+
+  // Cockcroft-Gault CrCl (mL/min) — using actual body weight
+  let crcl = ((140 - age) * weight) / (72 * scr);
+  if(sex === 'F') crcl *= 0.85;
+
+  // CKD-EPI 2021 (race-free) eGFR (mL/min/1.73m²)
+  let egfr;
+  if(sex === 'F'){
+    const k = 0.7, a = (scr <= k) ? -0.241 : -1.200;
+    egfr = 143 * Math.pow(scr/k, a) * Math.pow(0.9938, age);
+  } else {
+    const k = 0.9, a = (scr <= k) ? -0.302 : -1.200;
+    egfr = 142 * Math.pow(scr/k, a) * Math.pow(0.9938, age);
+  }
+
+  // Ideal body weight (Stanford/Devine formula) — reference only, shown if height provided
+  let ibwHtml = '';
+  if(heightCm && heightCm > 0){
+    const heightIn = heightCm / 2.54;
+    const overIn = Math.max(0, heightIn - 60);
+    const ibw = sex === 'F' ? (45 + 2.3*overIn) : (50 + 2.3*overIn);
+    ibwHtml = `<div class="result-box">
+      <div class="label">Ideal Body Weight (IBW)</div>
+      <div class="val">${ibw.toFixed(1)} <span style="font-size:13px;font-weight:500;">กก.</span></div>
+      <div class="sub">อ้างอิงสำหรับผู้ป่วยน้ำหนักเกิน/อ้วน — ใช้ประกอบดุลยพินิจ ไม่ได้แทนที่การคำนวณข้างต้น</div>
+    </div>`;
+  }
+
+  function stageClass(v){
+    if(v >= 60) return 'stage-normal';
+    if(v >= 30) return 'stage-mild';
+    return 'stage-severe';
+  }
+
+  grid.innerHTML = `
+    <div class="result-box ${stageClass(crcl)}">
+      <div class="label">Creatinine Clearance (Cockcroft-Gault)</div>
+      <div class="val">${crcl.toFixed(1)} <span style="font-size:13px;font-weight:500;">mL/min</span></div>
+      <div class="sub">ใช้น้ำหนักตัวจริง — ค่านี้คือค่าที่เอกสารอ้างอิงการปรับขนาดยาส่วนใหญ่ใช้ (CrCl)</div>
+    </div>
+    <div class="result-box ${stageClass(egfr)}">
+      <div class="label">eGFR (CKD-EPI 2021, race-free)</div>
+      <div class="val">${egfr.toFixed(1)} <span style="font-size:13px;font-weight:500;">mL/min/1.73m²</span></div>
+      <div class="sub">ค่ามาตรฐานที่ห้องปฏิบัติการรายงานทั่วไป</div>
+    </div>
+    ${ibwHtml}
+  `;
+}
+['in-sex','in-age','in-weight','in-height','in-scr'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', computeRenal);
+  document.getElementById(id).addEventListener('change', computeRenal);
+});
+
+// ---- load drugs + search ----
+async function loadDrugs(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    allDrugs = data.drugs || [];
+    document.getElementById('drug-count').textContent = allDrugs.length;
+  }catch(e){
+    document.getElementById('search-hint').textContent = 'โหลดข้อมูลไม่สำเร็จ: '+e.message;
+  }
+}
+
+function renderResults(term){
+  const container = document.getElementById('drug-results');
+  const emptyEl = document.getElementById('empty-state');
+  const t = term.trim().toLowerCase();
+  const matches = t ? allDrugs.filter(d => (d.name||'').toLowerCase().includes(t)) : [];
+  if(!t){ container.innerHTML=''; emptyEl.style.display='none'; return; }
+  if(!matches.length){ container.innerHTML=''; emptyEl.style.display='block'; return; }
+  emptyEl.style.display='none';
+  container.innerHTML = matches.map(d => {
+    const hasRenal = d.renalAdjustment && d.renalAdjustment.trim();
+    return `
+    <div class="drug-item">
+      <h3>${escapeHtml(d.name)} <span class="strength">${escapeHtml(d.strength||'')}</span></h3>
+      ${d.indicationGeneral ? `<div class="indication">${escapeHtml(d.indicationGeneral.slice(0,100))}${d.indicationGeneral.length>100?'…':''}</div>` : ''}
+      <div class="renal-box ${hasRenal?'':'empty'}">
+        <div class="renal-label">🫘 การปรับขนาดยาตามไต</div>
+        <div class="renal-text">${hasRenal ? escapeHtml(d.renalAdjustment) : 'ยังไม่มีข้อมูลการปรับขนาดยาตามไตสำหรับยานี้ในระบบ'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('search-input').addEventListener('input', (e)=> renderResults(e.target.value));
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadDrugs();
+</script>
+</body>
+</html>

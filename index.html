@@ -104,11 +104,10 @@
         <h4>ขนาดยาเด็ก</h4>
         <p>เครื่องคำนวณขนาดยาตามน้ำหนักตัว/อายุ สำหรับผู้ป่วยเด็กตามรายการยา รพ.</p>
       </div>
-      <div class="info-card pending">
+      <div class="info-card live" id="card-renal" style="border-color:#5C7A8A;">
         <div class="icon">🫘</div>
         <h4>ปรับขนาดยาตามไต</h4>
-        <p>ตารางปรับขนาดยาตามค่า eGFR/CrCl</p>
-        <span class="soon-tag">เร็วๆ นี้</span>
+        <p>คำนวณ eGFR/CrCl และค้นหาข้อมูลการปรับขนาดยาตามไต</p>
       </div>
       <div class="info-card pending">
         <div class="icon">📋</div>
@@ -400,6 +399,7 @@ function showLandingView(){
 document.getElementById('card-druginfo').addEventListener('click', showDrugInfoView);
 document.getElementById('card-had').addEventListener('click', ()=>{ window.location.href = 'had.html'; });
 document.getElementById('card-pediatric').addEventListener('click', ()=>{ window.location.href = 'pediatric.html'; });
+document.getElementById('card-renal').addEventListener('click', ()=>{ window.location.href = 'renal.html'; });
 document.getElementById('back-to-landing').addEventListener('click', (e)=>{ e.preventDefault(); showLandingView(); });
 
 refreshAuthUI();
