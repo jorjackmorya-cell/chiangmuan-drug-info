@@ -869,6 +869,7 @@ function renderCheckpointTable(){
       </div>
       <div style="margin-top:12px;">
         <button class="ghost small" id="btn-add-cp-secondary">+ เพิ่มช่วงเวลาถัดไป${currentHadDrug.secondaryRecurrenceMinutes ? ' ทุก '+currentHadDrug.secondaryRecurrenceMinutes+' นาที' : ''}</button>
+        ${currentHadDrug.doseRepeatable ? `<button class="ghost small" id="btn-add-dose-secondary" style="margin-left:8px;">+ เพิ่ม Dose (ขณะให้ยา)</button>` : ''}
       </div>` : ''}
 
       <hr style="border:none;border-top:1px solid var(--line);margin:22px 0 16px;">
@@ -908,6 +909,8 @@ function renderCheckpointTable(){
   if(doseBtn) doseBtn.addEventListener('click', addDoseCheckpoint);
   const secBtn = document.getElementById('btn-add-cp-secondary');
   if(secBtn) secBtn.addEventListener('click', ()=> addExtraCheckpoint('secondary'));
+  const doseBtnSecondary = document.getElementById('btn-add-dose-secondary');
+  if(doseBtnSecondary) doseBtnSecondary.addEventListener('click', addDoseCheckpoint);
   document.getElementById('btn-finish-episode').addEventListener('click', finishEpisode);
   document.getElementById('btn-print').addEventListener('click', ()=> window.print());
   document.getElementById('btn-copy-focus').addEventListener('click', showFocusNote);
