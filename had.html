@@ -990,8 +990,10 @@ function addExtraCheckpoint(which){
 }
 
 function addDoseCheckpoint(){
-  // สำหรับยาที่ให้แบบ bolus ซ้ำได้หลาย dose ตามการตอบสนอง (เช่น Adenosine) — ไม่ใช่ timeline
+  // สำหรับยาที่ให้แบบ bolus/ซ้ำได้หลาย dose ตามการตอบสนอง (เช่น Adenosine, Adrenaline) — ไม่ใช่ timeline
   // ต่อเนื่องแบบ infusion จึงใช้เวลาจริง ณ ตอนกดปุ่ม (ไม่คำนวณ offset ตายตัวจากเวลาเริ่มยา)
+  // เพิ่มจุดติดตามใหม่ให้ทั้งตาราง Vital Sign หลัก และตาราง "ส่วนของการติดตามเฉพาะ" (ถ้ายานี้มี) พร้อมกัน
+  // เพราะการให้ dose ใหม่คือเหตุการณ์เดียวที่ต้องประเมินค่าที่ติดตามทุกตัวใหม่ ไม่ใช่แค่ Vital Sign
   if(!currentEpisode) return;
   const list = currentEpisode.checkpoints;
   const doseCount = list.filter(cp=>/^Dose \d+/.test(cp.label)).length;
@@ -999,9 +1001,13 @@ function addDoseCheckpoint(){
   const now = new Date();
   const startTime = new Date(currentEpisode.startTime);
   const offsetMin = Math.round((now.getTime() - startTime.getTime())/60000);
-  list.push({ label: `Dose ${doseNum} - ขณะให้ยา`, offsetMin, time: now, saved:false, values:{} });
+  const label = `Dose ${doseNum} - ขณะให้ยา`;
+  list.push({ label, offsetMin, time: now, saved:false, values:{} });
+  if(currentHadDrug.secondaryFields && currentHadDrug.secondaryFields.trim()){
+    currentEpisode.secondaryCheckpoints.push({ label, offsetMin, time: new Date(now), saved:false, values:{} });
+  }
   renderCheckpointTable();
-  toast(`เพิ่มจุดติดตาม Dose ${doseNum} แล้ว — กด "+เพิ่มช่วงเวลาถัดไป" ต่อเพื่อติดตามหลังให้ยาต่อไป`, 4000);
+  toast(`เพิ่มจุดติดตาม Dose ${doseNum} แล้ว (ทุกตาราง) — กด "+เพิ่มช่วงเวลาถัดไป" ต่อเพื่อติดตามหลังให้ยาต่อไป`, 4000);
 }
 
 async function deleteCheckpointByIdx(which, idx){
