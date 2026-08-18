@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ขนาดยาเด็ก — ศูนย์ข้อมูลยา รพ.เชียงม่วน</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#114F29">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#20302E; --ink-soft:#4B615D; --ink-faint:#93A398; --paper:#F0F3EF; --card:#FFFFFF; --line:#D8E1DC;
+    --teal:#0F4C4C; --teal-deep:#0A3838; --teal-soft:#E4EEEC;
+    --amber:#C97B3D; --amber-soft:#F6E8D8;
+    --danger:#B5473A; --danger-soft:#F5E1DE;
+    --good:#3D7A5E; --good-soft:#DEEBE3;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Sarabun',sans-serif;background:var(--paper);color:var(--ink);}
+  .app{max-width:1140px;margin:0 auto;padding:24px 20px 80px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  .org-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .eyebrow{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--good);font-weight:600;margin-bottom:4px;}
+  h1{font-size:25px;font-weight:700;margin:0;color:var(--teal-deep);}
+  .auth-box{text-align:right;font-size:13px;}
+  .auth-box a{color:var(--teal);text-decoration:none;font-weight:600;}
+  .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);text-decoration:none;font-size:13.5px;font-weight:600;margin-bottom:16px;}
+
+  .warn-banner{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:12.5px;
+    margin-bottom:18px;display:flex;gap:8px;align-items:flex-start;line-height:1.6;}
+  .info-banner{background:var(--teal-soft);color:var(--teal-deep);border-radius:10px;padding:10px 14px;font-size:12.5px;
+    margin-bottom:14px;line-height:1.6;}
+
+  /* ---- calculator card ---- */
+  .calc-card{background:var(--card);border:2px solid var(--teal);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;
+    position:sticky;top:12px;z-index:40;}
+  .calc-card h3{margin:0 0 12px;font-size:15.5px;color:var(--teal-deep);}
+  .calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;align-items:end;}
+  .calc-field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;font-weight:500;}
+  .calc-field input, .calc-field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+    font-family:inherit;font-size:15px;background:#fff;}
+  .ibw-box{margin-top:14px;padding:12px 14px;background:var(--teal-soft);border-radius:8px;font-size:13px;color:var(--teal-deep);
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center;}
+  .ibw-box .val{font-weight:700;font-size:15px;}
+  .ibw-box.diff{background:var(--amber-soft);color:#6E4116;}
+  .weight-choice{display:flex;gap:14px;margin-top:10px;font-size:12.5px;color:var(--ink-soft);flex-wrap:wrap;}
+  .weight-choice label{display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .active-weight-note{margin-top:10px;font-size:12px;color:var(--ink-faint);}
+
+  .search-bar{margin-bottom:16px;}
+  .search-bar input{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-family:inherit;
+    font-size:15px;background:#fff;}
+  .search-hint{font-size:12px;color:var(--ink-faint);margin-top:6px;}
+
+  .admin-bar{text-align:right;margin-bottom:12px;}
+
+  .drug-results{display:flex;flex-direction:column;gap:10px;}
+  .drug-item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;}
+  .drug-item .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .drug-item h3{margin:0;font-size:16px;color:var(--teal-deep);}
+  .drug-item .strength{font-size:13px;color:var(--ink-soft);font-weight:400;}
+  .form-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;margin-left:8px;
+    vertical-align:middle;background:var(--good-soft);color:var(--good);}
+  .form-badge.tablet{background:var(--amber-soft);color:var(--amber);}
+  .row-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;}
+  .age-warn{margin-top:8px;background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:12.5px;}
+
+  .dose-result{margin-top:12px;padding:14px 16px;background:var(--teal-soft);border-radius:8px;}
+  .dose-result .headline{font-size:19px;font-weight:700;color:var(--teal-deep);}
+  .dose-result .sub{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+  .dose-result.capped{background:var(--amber-soft);}
+  .dose-result.capped .headline{color:#6E4116;}
+  .dose-result .cap-note{font-size:12px;color:#6E4116;margin-top:6px;font-weight:600;}
+  .dose-result.no-weight{background:var(--paper);color:var(--ink-faint);text-align:center;font-size:13px;}
+
+  .drug-detail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:13.5px;line-height:1.7;}
+  .drug-detail.open{display:block;}
+  .detail-row{margin-bottom:8px;}
+  .detail-row b{color:var(--teal-deep);}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);padding:7px 14px;border-radius:7px;
+    font-family:inherit;font-size:13px;cursor:pointer;}
+  button.ghost:hover{border-color:var(--teal);color:var(--teal-deep);}
+  button.primary{background:var(--teal);color:#fff;border:none;padding:8px 16px;border-radius:7px;font-family:inherit;
+    font-size:13.5px;font-weight:600;cursor:pointer;}
+  button.primary:hover{background:var(--teal-deep);}
+  button.small{padding:5px 10px;font-size:12.5px;}
+
+  /* ---- modal (login / edit) reused pattern ---- */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,30,28,.45);z-index:200;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:14px;padding:26px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;}
+  .modal.wide{max-width:640px;}
+  .modal h3{margin:0 0 14px;color:var(--teal-deep);font-size:17px;}
+  .modal-msg{font-size:12.5px;color:var(--danger);margin-top:8px;min-height:16px;}
+  .code-input{width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;font-size:20px;text-align:center;
+    letter-spacing:6px;font-family:inherit;}
+  .edit-form label{display:block;font-size:12px;color:var(--ink-soft);margin:10px 0 4px;font-weight:500;}
+  .edit-form input, .edit-form select, .edit-form textarea{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:7px;font-family:inherit;font-size:14px;background:#fff;}
+  .edit-form textarea{min-height:50px;resize:vertical;}
+  .edit-form .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .edit-form .hint{font-size:11px;color:var(--ink-faint);margin-top:3px;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--teal-deep);color:#fff;
+    padding:10px 20px;border-radius:8px;font-size:13.5px;z-index:300;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+
+  @media(max-width:600px){
+    .calc-card{position:static;}
+    .drug-item .row1{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="org-line">กลุ่มงานเภสัชกรรมและคุ้มครองผู้บริโภค โรงพยาบาลเชียงม่วน</div>
+      <div class="eyebrow">Pediatric Dosing</div>
+      <h1>👶 เครื่องคำนวณขนาดยาเด็ก</h1>
+    </div>
+    <div class="auth-box" id="auth-box"></div>
+  </header>
+
+  <a href="index.html" class="back-link">← กลับหน้ารวมศูนย์ข้อมูลยา</a>
+
+  <div class="warn-banner">
+    ⚠️ ผลลัพธ์จากเครื่องมือนี้เป็นการคำนวณเบื้องต้นเพื่อช่วยลดภาระงาน <b>ไม่ใช่คำสั่งใช้ยาขั้นสุดท้าย</b> —
+    เภสัชกร/แพทย์ต้องพิจารณาอาการทางคลินิก โรคร่วม และดุลยพินิจทางวิชาชีพประกอบเสมอ
+  </div>
+
+  <div class="calc-card">
+    <h3>1. กรอกข้อมูลผู้ป่วยเด็ก</h3>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>น้ำหนักตัวจริง (กก.)</label>
+        <input type="number" id="in-weight" step="0.1" min="0" placeholder="เช่น 12.5">
+      </div>
+      <div class="calc-field">
+        <label>อายุ (ปี)</label>
+        <input type="number" id="in-age-years" min="0" max="17" placeholder="0">
+      </div>
+      <div class="calc-field">
+        <label>อายุ (เดือน เพิ่มเติม)</label>
+        <input type="number" id="in-age-months" min="0" max="11" placeholder="0">
+      </div>
+    </div>
+    <div class="ibw-box" id="ibw-box" style="display:none;"></div>
+    <div class="weight-choice" id="weight-choice" style="display:none;">
+      <label><input type="radio" name="weight-basis" value="actual" checked> ใช้น้ำหนักจริงคำนวณยา</label>
+      <label><input type="radio" name="weight-basis" value="ibw"> ใช้น้ำหนักตามเกณฑ์อายุคำนวณยา</label>
+    </div>
+    <div class="active-weight-note" id="active-weight-note"></div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="🔍 พิมพ์ชื่อยาเพื่อค้นหา...">
+    <div class="search-hint" id="search-hint">พิมพ์ชื่อยาเพื่อดูขนาดยาที่คำนวณได้ — ตอนนี้มีข้อมูลยาในระบบ <span id="drug-count">…</span> รายการ</div>
+  </div>
+
+  <div class="admin-bar" id="admin-bar" style="display:none;">
+    <button class="primary small" id="btn-add-pediatric">+ เพิ่มยาเด็กใหม่</button>
+  </div>
+
+  <div class="drug-results" id="drug-results"></div>
+  <div class="empty-state" id="list-empty" style="display:none;">กำลังโหลดข้อมูล...</div>
+</div>
+
+<!-- Login modal -->
+<div class="modal-overlay" id="login-overlay">
+  <div class="modal">
+    <h3>🔒 เข้าสู่ระบบ</h3>
+    <div style="color:var(--ink-soft);text-align:left;margin-bottom:12px;font-size:12.5px;">
+      เภสัชกร/เจ้าหน้าที่ห้องยา หรือพยาบาล ใช้รหัส 6 หลักเดียวกับระบบเดิม
+    </div>
+    <input type="text" id="login-code" class="code-input" maxlength="6" inputmode="numeric" placeholder="------">
+    <div class="modal-msg" id="login-msg"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="ghost" id="login-cancel" style="flex:1;">ยกเลิก</button>
+      <button class="primary" id="login-submit" style="flex:1;">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit pediatric entry modal -->
+<div class="modal-overlay" id="edit-overlay">
+  <div class="modal wide">
+    <h3 id="edit-title">เพิ่มยาเด็กใหม่</h3>
+    <div class="edit-form">
+      <div class="two-col">
+        <div><label>ชื่อยา (Generic)</label><input type="text" id="ed-name"></div>
+        <div><label>ชื่อการค้า (ถ้ามี)</label><input type="text" id="ed-tradeName"></div>
+      </div>
+      <div class="two-col">
+        <label style="grid-column:1/-1;">รูปแบบยา</label>
+        <select id="ed-form">
+          <option value="liquid">ยาน้ำ/ยาฉีด (คำนวณเป็น mL)</option>
+          <option value="tablet">ยาเม็ด/แคปซูล (คำนวณเป็นเศษเม็ด)</option>
+        </select>
+        <div><label>ข้อความความแรง (โชว์บนหน้าเว็บ)</label><input type="text" id="ed-strengthLabel" placeholder="เช่น 125 mg/5 mL"></div>
+      </div>
+      <div class="two-col">
+        <div><label>ความแรง (mg ต่อหน่วย)</label><input type="number" id="ed-strengthPerUnit" step="any" placeholder="เช่น 125"></div>
+        <div><label>ปริมาตรต่อหน่วย (mL, ยาเม็ดใส่ 1)</label><input type="number" id="ed-strengthUnitVolume" step="any" placeholder="เช่น 5"></div>
+      </div>
+      <div class="two-col">
+        <div><label>ขนาดยาต่ำสุด (mg/kg)</label><input type="number" id="ed-doseMin" step="any"></div>
+        <div><label>ขนาดยาสูงสุด (mg/kg)</label><input type="number" id="ed-doseMax" step="any"></div>
+      </div>
+      <div class="two-col">
+        <div><label>ฐานการคำนวณ</label>
+          <select id="ed-doseBasis">
+            <option value="perDose">ต่อครั้ง (mg/kg/dose)</option>
+            <option value="perDay">ต่อวัน (mg/kg/day)</option>
+          </select>
+        </div>
+        <div><label>ความถี่ (ครั้ง/วัน)</label><input type="number" id="ed-frequencyPerDay" min="1" placeholder="เช่น 3"></div>
+      </div>
+      <div class="two-col">
+        <div><label>เพดานสูงสุดต่อครั้ง (mg, ถ้ามี)</label><input type="number" id="ed-maxDosePerDose" step="any"></div>
+        <div><label>เพดานสูงสุดต่อวัน (mg, ถ้ามี)</label><input type="number" id="ed-maxDosePerDay" step="any"></div>
+      </div>
+      <div class="two-col">
+        <div><label>อายุขั้นต่ำที่ใช้ได้ (เดือน, ถ้ามี)</label><input type="number" id="ed-minAgeMonths" step="1"></div>
+        <div><label>ข้อความเตือนเรื่องอายุ (ถ้ามี)</label><input type="text" id="ed-ageWarning" placeholder="เช่น ห้ามใช้ในเด็กอายุต่ำกว่า 8 ปี"></div>
+      </div>
+      <label>ข้อบ่งใช้</label><input type="text" id="ed-indication">
+      <label>หมายเหตุเพิ่มเติม</label><textarea id="ed-notes"></textarea>
+      <label>เอกสารอ้างอิง</label><textarea id="ed-references"></textarea>
+    </div>
+    <div class="modal-msg" id="edit-msg"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="ghost" id="edit-cancel" style="flex:1;">ยกเลิก</button>
+      <button class="ghost" id="edit-delete" style="flex:1;color:var(--danger);border-color:var(--danger);display:none;">ลบยานี้</button>
+      <button class="primary" id="edit-save" style="flex:1;">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyToHBwKzpSEjNvuZdjWvUrqMcOeIlwRRlA0iVoBh1xzdRVCSlMKXnY_MqBz0HhGEqtRg/exec';
+const AUTH_KEY = 'dic-auth-v1';
+const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+let allPediatric = [];
+let editingId = null;
+let currentWeightBasis = 'actual';
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- auth ----------
+function getAuth(){
+  let auth;
+  try{ auth = JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch(e){ return null; }
+  if(!auth) return null;
+  if(!auth.at || (Date.now()-auth.at) > SESSION_MAX_AGE_MS){ sessionStorage.removeItem(AUTH_KEY); return null; }
+  return auth;
+}
+function setAuth(code, name){ sessionStorage.setItem(AUTH_KEY, JSON.stringify({code, name, at: Date.now()})); }
+function clearAuth(){ sessionStorage.removeItem(AUTH_KEY); }
+
+function renderAuthBox(){
+  const auth = getAuth();
+  const box = document.getElementById('auth-box');
+  const adminBar = document.getElementById('admin-bar');
+  if(auth){
+    box.innerHTML = `เจ้าหน้าที่: <b>${escapeHtml(auth.name)}</b> · <a href="#" id="logout-link">ออกจากระบบ</a>`;
+    document.getElementById('logout-link').addEventListener('click', (e)=>{ e.preventDefault(); clearAuth(); renderAuthBox(); renderList(); });
+    adminBar.style.display = 'block';
+  } else {
+    box.innerHTML = `<a href="#" id="login-link">เข้าสู่ระบบ</a>`;
+    document.getElementById('login-link').addEventListener('click', (e)=>{ e.preventDefault(); openLogin(); });
+    adminBar.style.display = 'none';
+  }
+}
+
+function openLogin(){
+  document.getElementById('login-overlay').classList.add('show');
+  document.getElementById('login-code').value = '';
+  document.getElementById('login-msg').textContent = '';
+  document.getElementById('login-code').focus();
+}
+document.getElementById('login-cancel').addEventListener('click', ()=> document.getElementById('login-overlay').classList.remove('show'));
+document.getElementById('login-submit').addEventListener('click', submitLogin);
+document.getElementById('login-code').addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitLogin(); });
+async function submitLogin(){
+  const code = document.getElementById('login-code').value.trim();
+  if(!code){ document.getElementById('login-msg').textContent = 'กรุณากรอกรหัส'; return; }
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verifyCode', code})});
+    const data = await res.json();
+    if(data.ok && data.valid){
+      setAuth(code, data.name);
+      document.getElementById('login-overlay').classList.remove('show');
+      renderAuthBox(); renderList();
+      toast(`ยินดีต้อนรับ ${data.name}`);
+    } else {
+      document.getElementById('login-msg').textContent = 'รหัสไม่ถูกต้องหรือถูกระงับการใช้งาน';
+    }
+  }catch(e){ document.getElementById('login-msg').textContent = 'เชื่อมต่อไม่สำเร็จ: '+e.message; }
+}
+
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.style.display='none', ms||2500);
+}
+
+// ---------- ideal/expected body weight (APLS formula) ----------
+function calcExpectedWeight(ageYears, ageMonthsExtra){
+  const totalMonths = (parseInt(ageYears,10)||0)*12 + (parseInt(ageMonthsExtra,10)||0);
+  if(totalMonths <= 0) return null;
+  if(totalMonths <= 12) return (totalMonths+9)/2;
+  const y = totalMonths/12;
+  if(y <= 5) return y*2+8;
+  if(y <= 14) return y*3+7;
+  return null; // สูตรนี้ใช้ได้ถึง 14 ปี — เกินกว่านี้ให้ใช้น้ำหนักจริงเป็นหลัก
+}
+
+function updateIbwBox(){
+  const ay = document.getElementById('in-age-years').value;
+  const am = document.getElementById('in-age-months').value;
+  const actualW = parseFloat(document.getElementById('in-weight').value);
+  const box = document.getElementById('ibw-box');
+  const choiceWrap = document.getElementById('weight-choice');
+  const ibw = calcExpectedWeight(ay, am);
+
+  if(ibw == null){
+    box.style.display = 'none';
+    choiceWrap.style.display = 'none';
+    updateActiveWeightNote();
+    return;
+  }
+  const ibwRounded = Math.round(ibw*10)/10;
+  let diffHtml = '';
+  let diffClass = '';
+  if(!isNaN(actualW) && actualW > 0){
+    const diffPct = Math.abs(actualW - ibw) / ibw * 100;
+    if(diffPct >= 20){
+      diffClass = ' diff';
+      diffHtml = `<span>⚠️ น้ำหนักจริงต่างจากเกณฑ์อายุ ${diffPct.toFixed(0)}% — พิจารณาเลือกน้ำหนักที่ใช้คำนวณด้านล่าง</span>`;
+    }
+  }
+  box.className = 'ibw-box' + diffClass;
+  box.style.display = 'flex';
+  box.innerHTML = `<div>น้ำหนักตามเกณฑ์อายุ (Expected weight-for-age): <span class="val">${ibwRounded} กก.</span></div>` + diffHtml;
+  choiceWrap.style.display = (!isNaN(actualW) && actualW > 0) ? 'flex' : 'none';
+  updateActiveWeightNote();
+}
+
+function updateActiveWeightNote(){
+  const note = document.getElementById('active-weight-note');
+  const actualW = parseFloat(document.getElementById('in-weight').value);
+  const w = getEffectiveWeight();
+  if(!w){ note.textContent = ''; return; }
+  const basisLabel = currentWeightBasis === 'ibw' ? 'น้ำหนักตามเกณฑ์อายุ' : 'น้ำหนักจริง';
+  note.textContent = `กำลังใช้ ${basisLabel} (${w} กก.) ในการคำนวณขนาดยาด้านล่าง`;
+}
+
+function getEffectiveWeight(){
+  const actualW = parseFloat(document.getElementById('in-weight').value);
+  if(currentWeightBasis === 'ibw'){
+    const ay = document.getElementById('in-age-years').value;
+    const am = document.getElementById('in-age-months').value;
+    const ibw = calcExpectedWeight(ay, am);
+    if(ibw != null) return Math.round(ibw*10)/10;
+  }
+  return (!isNaN(actualW) && actualW > 0) ? actualW : null;
+}
+
+document.getElementById('in-weight').addEventListener('input', ()=>{ updateIbwBox(); renderList(); });
+document.getElementById('in-age-years').addEventListener('input', ()=>{ updateIbwBox(); renderList(); });
+document.getElementById('in-age-months').addEventListener('input', ()=>{ updateIbwBox(); renderList(); });
+document.querySelectorAll('input[name="weight-basis"]').forEach(r=>{
+  r.addEventListener('change', (e)=>{ currentWeightBasis = e.target.value; updateActiveWeightNote(); renderList(); });
+});
+
+// ---------- dose calculation ----------
+function roundLiquid(ml){
+  if(ml <= 0) return 0;
+  if(ml < 2) return Math.round(ml*4)/4; // ปัดเศษ 0.25 มล. สำหรับปริมาณน้อย
+  return Math.round(ml*2)/2; // ปัดเศษ 0.5 มล.
+}
+function roundTablet(t){
+  if(t <= 0) return 0;
+  return Math.round(t*4)/4; // ปัดเศษ 1/4 เม็ด
+}
+function fmtNum(n){
+  if(n == null || isNaN(n)) return '-';
+  return (Math.round(n*100)/100).toString().replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
+}
+
+function calcDoseForDrug(drug, weightKg){
+  const doseMin = parseFloat(drug.doseMin)||0;
+  const doseMax = parseFloat(drug.doseMax)||0;
+  const freq = parseInt(drug.frequencyPerDay,10) || 1;
+  let mgLow, mgHigh;
+  if(drug.doseBasis === 'perDay'){
+    mgLow = (doseMin*weightKg)/freq;
+    mgHigh = (doseMax*weightKg)/freq;
+  } else {
+    mgLow = doseMin*weightKg;
+    mgHigh = doseMax*weightKg;
+  }
+  let capped = false;
+  const maxPerDose = parseFloat(drug.maxDosePerDose);
+  const maxPerDay = parseFloat(drug.maxDosePerDay);
+  if(!isNaN(maxPerDose) && maxPerDose > 0){
+    if(mgLow > maxPerDose){ mgLow = maxPerDose; capped = true; }
+    if(mgHigh > maxPerDose){ mgHigh = maxPerDose; capped = true; }
+  }
+  if(!isNaN(maxPerDay) && maxPerDay > 0){
+    const capFromDay = maxPerDay/freq;
+    if(mgLow > capFromDay){ mgLow = capFromDay; capped = true; }
+    if(mgHigh > capFromDay){ mgHigh = capFromDay; capped = true; }
+  }
+  const strengthPerUnit = parseFloat(drug.strengthPerUnit) || 1;
+  const strengthUnitVolume = parseFloat(drug.strengthUnitVolume) || 1;
+  const isLiquid = drug.form === 'liquid';
+  let low, high, unit;
+  if(isLiquid){
+    low = roundLiquid(mgLow/strengthPerUnit*strengthUnitVolume);
+    high = roundLiquid(mgHigh/strengthPerUnit*strengthUnitVolume);
+    unit = 'mL';
+  } else {
+    low = roundTablet(mgLow/strengthPerUnit);
+    high = roundTablet(mgHigh/strengthPerUnit);
+    unit = 'เม็ด';
+  }
+  return { mgLow, mgHigh, low, high, unit, freq, capped };
+}
+
+// ---------- render ----------
+async function loadData(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'load failed');
+    allPediatric = data.pediatric || [];
+    document.getElementById('drug-count').textContent = allPediatric.length;
+    renderList();
+  }catch(e){
+    document.getElementById('list-empty').textContent = '⚠️ โหลดข้อมูลไม่สำเร็จ: '+e.message;
+    document.getElementById('list-empty').style.display = 'block';
+  }
+}
+
+function renderList(){
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const container = document.getElementById('drug-results');
+  const empty = document.getElementById('list-empty');
+  let list = allPediatric;
+  if(q){
+    list = list.filter(d => (d.name||'').toLowerCase().includes(q) || (d.tradeName||'').toLowerCase().includes(q));
+  }
+  if(!list.length){
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = allPediatric.length ? 'ไม่พบยาที่ค้นหา' : 'ยังไม่มีข้อมูลยาเด็กในระบบ';
+    return;
+  }
+  empty.style.display = 'none';
+  const weight = getEffectiveWeight();
+  const ageMonths = (parseInt(document.getElementById('in-age-years').value,10)||0)*12 +
+                     (parseInt(document.getElementById('in-age-months').value,10)||0);
+  const hasAge = ageMonths > 0;
+
+  container.innerHTML = list.map(d=>{
+    const formLabel = d.form === 'tablet' ? 'ยาเม็ด/แคปซูล' : 'ยาน้ำ/ยาฉีด';
+    const formCls = d.form === 'tablet' ? ' tablet' : '';
+    let ageWarnHtml = '';
+    const minAgeMonths = parseFloat(d.minAgeMonths);
+    if(!isNaN(minAgeMonths) && minAgeMonths > 0 && hasAge && ageMonths < minAgeMonths){
+      ageWarnHtml = `<div class="age-warn">🚫 ผู้ป่วยอายุน้อยกว่าเกณฑ์ขั้นต่ำของยานี้ (${d.ageWarning || 'ต้องมีอายุอย่างน้อย '+Math.round(minAgeMonths/12*10)/10+' ปี'})</div>`;
+    } else if(d.ageWarning){
+      ageWarnHtml = `<div class="age-warn">⚠️ ${escapeHtml(d.ageWarning)}</div>`;
+    }
+
+    let resultHtml;
+    if(!weight){
+      resultHtml = `<div class="dose-result no-weight">กรอกน้ำหนักตัวด้านบนเพื่อคำนวณขนาดยา</div>`;
+    } else {
+      const r = calcDoseForDrug(d, weight);
+      const range = r.low === r.high ? `${fmtNum(r.low)} ${r.unit}` : `${fmtNum(r.low)}–${fmtNum(r.high)} ${r.unit}`;
+      resultHtml = `<div class="dose-result${r.capped?' capped':''}">
+        <div class="headline">${range} / ครั้ง — วันละ ${r.freq} ครั้ง</div>
+        <div class="sub">≈ ${fmtNum(r.mgLow)}–${fmtNum(r.mgHigh)} mg/ครั้ง (จากน้ำหนัก ${weight} กก.)</div>
+        ${r.capped ? `<div class="cap-note">⚠️ ขนาดยาถูกจำกัดตามเพดานสูงสุดที่กำหนดไว้แล้ว</div>` : ''}
+      </div>`;
+    }
+
+    return `<div class="drug-item" data-id="${escapeHtml(d.id)}">
+      <div class="row1">
+        <div>
+          <h3>${escapeHtml(d.name)} <span class="strength">${escapeHtml(d.strengthLabel||'')}</span>
+            <span class="form-badge${formCls}">${formLabel}</span>
+          </h3>
+          ${d.tradeName ? `<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;">${escapeHtml(d.tradeName)}</div>` : ''}
+        </div>
+        <div class="row-actions">
+          ${getAuth() ? `<button class="ghost small edit-btn" data-id="${escapeHtml(d.id)}">แก้ไข</button>` : ''}
+        </div>
+      </div>
+      ${ageWarnHtml}
+      ${resultHtml}
+      <div class="drug-detail" style="display:${d.indication||d.notes||d.references?'block':'none'};">
+        ${d.indication ? `<div class="detail-row"><b>ข้อบ่งใช้:</b> ${escapeHtml(d.indication)}</div>` : ''}
+        ${d.notes ? `<div class="detail-row"><b>หมายเหตุ:</b> ${escapeHtml(d.notes)}</div>` : ''}
+        ${d.references ? `<div class="detail-row" style="color:var(--ink-faint);font-size:12px;"><b>อ้างอิง:</b> ${escapeHtml(d.references)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.edit-btn').forEach(btn=> btn.addEventListener('click', (e)=>{ e.stopPropagation(); openEdit(btn.dataset.id); }));
+}
+
+document.getElementById('search-input').addEventListener('input', renderList);
+
+// ---------- edit modal ----------
+function openEdit(id){
+  if(!getAuth()){ openLogin(); return; }
+  editingId = id || null;
+  const d = id ? allPediatric.find(x=>x.id===id) : null;
+  document.getElementById('edit-title').textContent = id ? 'แก้ไขยาเด็ก' : 'เพิ่มยาเด็กใหม่';
+  document.getElementById('ed-name').value = d ? d.name||'' : '';
+  document.getElementById('ed-tradeName').value = d ? d.tradeName||'' : '';
+  document.getElementById('ed-form').value = d ? d.form||'liquid' : 'liquid';
+  document.getElementById('ed-strengthLabel').value = d ? d.strengthLabel||'' : '';
+  document.getElementById('ed-strengthPerUnit').value = d ? d.strengthPerUnit||'' : '';
+  document.getElementById('ed-strengthUnitVolume').value = d ? d.strengthUnitVolume||'' : '';
+  document.getElementById('ed-doseMin').value = d ? d.doseMin||'' : '';
+  document.getElementById('ed-doseMax').value = d ? d.doseMax||'' : '';
+  document.getElementById('ed-doseBasis').value = d ? d.doseBasis||'perDose' : 'perDose';
+  document.getElementById('ed-frequencyPerDay').value = d ? d.frequencyPerDay||'' : '';
+  document.getElementById('ed-maxDosePerDose').value = d ? d.maxDosePerDose||'' : '';
+  document.getElementById('ed-maxDosePerDay').value = d ? d.maxDosePerDay||'' : '';
+  document.getElementById('ed-minAgeMonths').value = d ? d.minAgeMonths||'' : '';
+  document.getElementById('ed-ageWarning').value = d ? d.ageWarning||'' : '';
+  document.getElementById('ed-indication').value = d ? d.indication||'' : '';
+  document.getElementById('ed-notes').value = d ? d.notes||'' : '';
+  document.getElementById('ed-references').value = d ? d.references||'' : '';
+  document.getElementById('edit-msg').textContent = '';
+  document.getElementById('edit-delete').style.display = id ? 'block' : 'none';
+  document.getElementById('edit-overlay').classList.add('show');
+}
+document.getElementById('btn-add-pediatric').addEventListener('click', ()=> openEdit(null));
+document.getElementById('edit-cancel').addEventListener('click', ()=> document.getElementById('edit-overlay').classList.remove('show'));
+
+document.getElementById('edit-save').addEventListener('click', async ()=>{
+  const auth = getAuth();
+  if(!auth){ openLogin(); return; }
+  const name = document.getElementById('ed-name').value.trim();
+  if(!name){ document.getElementById('edit-msg').textContent = 'กรุณากรอกชื่อยา'; return; }
+  const entry = {
+    id: editingId || undefined,
+    name,
+    tradeName: document.getElementById('ed-tradeName').value.trim(),
+    form: document.getElementById('ed-form').value,
+    strengthLabel: document.getElementById('ed-strengthLabel').value.trim(),
+    strengthPerUnit: document.getElementById('ed-strengthPerUnit').value.trim(),
+    strengthUnitVolume: document.getElementById('ed-strengthUnitVolume').value.trim(),
+    doseMin: document.getElementById('ed-doseMin').value.trim(),
+    doseMax: document.getElementById('ed-doseMax').value.trim(),
+    doseBasis: document.getElementById('ed-doseBasis').value,
+    frequencyPerDay: document.getElementById('ed-frequencyPerDay').value.trim(),
+    maxDosePerDose: document.getElementById('ed-maxDosePerDose').value.trim(),
+    maxDosePerDay: document.getElementById('ed-maxDosePerDay').value.trim(),
+    minAgeMonths: document.getElementById('ed-minAgeMonths').value.trim(),
+    ageWarning: document.getElementById('ed-ageWarning').value.trim(),
+    indication: document.getElementById('ed-indication').value.trim(),
+    notes: document.getElementById('ed-notes').value.trim(),
+    references: document.getElementById('ed-references').value.trim(),
+  };
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'savePediatric', code: auth.code, entry})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    document.getElementById('edit-overlay').classList.remove('show');
+    toast('บันทึกข้อมูลยาเรียบร้อย');
+    await loadData();
+  }catch(e){ document.getElementById('edit-msg').textContent = '⚠️ บันทึกไม่สำเร็จ: '+e.message; }
+});
+
+document.getElementById('edit-delete').addEventListener('click', async ()=>{
+  const auth = getAuth();
+  if(!auth || !editingId) return;
+  if(!confirm('ยืนยันลบข้อมูลยานี้?')) return;
+  try{
+    const res = await fetch(API_URL, {method:'POST', body: JSON.stringify({action:'deletePediatric', code: auth.code, id: editingId})});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||'unknown');
+    document.getElementById('edit-overlay').classList.remove('show');
+    toast('ลบข้อมูลยาแล้ว');
+    await loadData();
+  }catch(e){ document.getElementById('edit-msg').textContent = '⚠️ ลบไม่สำเร็จ: '+e.message; }
+});
+
+// ---------- init ----------
+renderAuthBox();
+loadData();
+</script>
+</body>
+</html>
