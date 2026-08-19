@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ใบ DUE · ศูนย์ข้อมูลยา รพ.เชียงม่วน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#20302E; --ink-soft:#4B615D; --ink-faint:#93A398; --paper:#F0F3EF; --card:#FFFFFF; --line:#D8E1DC;
+    --teal:#0F4C4C; --teal-deep:#0A3838; --teal-soft:#E4EEEC;
+    --amber:#C97B3D; --amber-soft:#F6E8D8;
+    --danger:#B5473A; --danger-soft:#F5E1DE;
+    --good:#3D7A5E; --good-soft:#DEEBE3;
+    --gray-soft:#EAEDE8;
+    --radius:14px; --radius-sm:9px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Sarabun',sans-serif;background:var(--paper);color:var(--ink);}
+  .app{max-width:1080px;margin:0 auto;padding:24px 20px 90px;}
+  .hidden{display:none !important;}
+
+  /* ---- login gate ---- */
+  #login-gate{max-width:380px;margin:80px auto;background:var(--card);border-radius:var(--radius);padding:30px;box-shadow:0 4px 20px rgba(0,0,0,.06);text-align:center;}
+  #login-gate h2{margin:0 0 6px;font-size:19px;}
+  #login-gate p{color:var(--ink-soft);font-size:13.5px;margin:0 0 18px;}
+  #login-gate input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:9px;font-size:20px;
+    text-align:center;letter-spacing:.3em;font-family:inherit;margin-bottom:12px;}
+  #login-gate button{width:100%;padding:12px;background:var(--teal);color:#fff;border:none;border-radius:9px;
+    font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+  #login-error{color:var(--danger);font-size:12.5px;margin-top:8px;min-height:16px;}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+  .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);text-decoration:none;font-size:13.5px;font-weight:600;margin-bottom:14px;}
+  .eyebrow{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#5C7A8A;font-weight:600;margin-bottom:4px;}
+  h1{font-size:24px;font-weight:700;margin:0 0 2px;color:var(--teal-deep);}
+  .lede{font-size:13.5px;color:var(--ink-soft);margin:0;}
+  .whoami{font-size:12.5px;color:var(--ink-soft);text-align:right;}
+  .whoami b{color:var(--ink);}
+  .whoami a{color:var(--ink-faint);text-decoration:underline;cursor:pointer;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .tab-btn{background:none;border:none;padding:10px 16px;font-family:inherit;font-size:14px;font-weight:600;
+    color:var(--ink-faint);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;}
+  .tab-btn.active{color:var(--teal-deep);border-bottom-color:var(--teal);}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px;}
+  .card h3{font-size:15.5px;font-weight:700;margin:0 0 14px;color:var(--teal-deep);}
+
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+  .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--line);
+    border-radius:8px;font-family:inherit;font-size:14px;background:#fff;}
+  .field textarea{min-height:50px;resize:vertical;}
+
+  .criteria-box{background:var(--gray-soft);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:14px;}
+  .criteria-item{margin-bottom:10px;}
+  .criteria-item label{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;cursor:pointer;line-height:1.6;}
+  .criteria-item input[type=checkbox]{margin-top:3px;flex-shrink:0;}
+  .criteria-group-label{font-weight:700;font-size:13.5px;margin-bottom:8px;color:var(--teal-deep);}
+  .criteria-sub{margin-left:26px;margin-top:6px;}
+  .criteria-text-input{margin-left:26px;margin-top:6px;width:calc(100% - 26px);padding:7px 10px;border:1px solid var(--line);
+    border-radius:7px;font-family:inherit;font-size:13px;display:none;}
+  .criteria-text-input.show{display:block;}
+
+  button.primary{background:var(--teal);color:#fff;border:none;padding:11px 22px;border-radius:9px;font-family:inherit;
+    font-size:14.5px;font-weight:700;cursor:pointer;}
+  button.primary:hover{background:var(--teal-deep);}
+  button.primary:disabled{opacity:.5;cursor:default;}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:8px;
+    font-family:inherit;font-size:13px;cursor:pointer;}
+  button.ghost:hover{border-color:var(--teal);color:var(--teal-deep);}
+  button.approve{background:var(--good-soft);color:var(--good);border:1px solid #c7dfc0;border-radius:8px;padding:7px 16px;
+    font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  button.approve:hover{background:var(--good);color:#fff;}
+  button.reject{background:var(--danger-soft);color:var(--danger);border:1px solid #f0c9c2;border-radius:8px;padding:7px 16px;
+    font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  button.reject:hover{background:var(--danger);color:#fff;}
+
+  .msg{font-size:12.5px;margin-top:8px;min-height:16px;}
+  .msg.error{color:var(--danger);}
+  .msg.success{color:var(--good);}
+
+  .req-item{border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
+  .req-item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .req-item-head .drug-name{font-weight:700;font-size:14.5px;color:var(--teal-deep);}
+  .req-item-meta{font-size:12.5px;color:var(--ink-soft);line-height:1.7;}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+  .badge.pending{background:var(--amber-soft);color:#7A4D0E;}
+  .badge.approved{background:var(--good-soft);color:var(--good);}
+  .badge.rejected{background:var(--danger-soft);color:var(--danger);}
+  .badge.culture-pending{background:var(--teal-soft);color:var(--teal-deep);}
+  .req-item-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+  .empty-state{text-align:center;padding:30px;color:var(--ink-faint);font-size:13.5px;}
+  .search-input{width:100%;max-width:320px;padding:9px 14px;border:1px solid var(--line);border-radius:8px;
+    font-family:inherit;font-size:14px;margin-bottom:14px;}
+
+  .report-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+  .stat-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;}
+  .stat-box .num{font-size:22px;font-weight:700;}
+  .stat-box .label{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;padding:7px 8px;border-bottom:2px solid var(--line);}
+  td{padding:8px;border-bottom:1px solid var(--line);}
+  .table-wrap{overflow-x:auto;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,30,28,.5);display:flex;align-items:center;justify-content:center;
+    padding:20px;z-index:100;}
+  .modal{background:#fff;border-radius:var(--radius);padding:22px;max-width:460px;width:100%;max-height:85vh;overflow-y:auto;}
+  .modal h3{margin-top:0;}
+</style>
+</head>
+<body>
+
+<div id="login-gate">
+  <h2>🔒 เข้าสู่ระบบ</h2>
+  <p>กรอกรหัส 6 หลักเพื่อใช้งานระบบใบ DUE</p>
+  <input type="text" id="login-code" maxlength="6" inputmode="numeric" placeholder="••••••">
+  <button id="btn-login">เข้าสู่ระบบ</button>
+  <div id="login-error"></div>
+</div>
+
+<div class="app hidden" id="app-main">
+  <a href="./index.html" class="back-link">← กลับหน้ารวมศูนย์ข้อมูลยา</a>
+  <header>
+    <div>
+      <div class="eyebrow">Drug Utilization Evaluation</div>
+      <h1>📋 ใบ DUE</h1>
+      <p class="lede">แบบฟอร์มขอใช้ยาที่ต้องประเมิน — Atorvastatin, Simvastatin, Ceftazidime, Oseltamivir</p>
+    </div>
+    <div class="whoami" id="whoami"></div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="submit">📝 ยื่นขอใช้ยา</button>
+    <button class="tab-btn" data-tab="review">✅ ตรวจสอบ/อนุมัติ</button>
+    <button class="tab-btn" data-tab="reports">📊 รายงาน</button>
+  </div>
+
+  <!-- ===== TAB 1: SUBMIT ===== -->
+  <div class="panel active" id="panel-submit">
+    <div class="card">
+      <h3>เลือกยาที่ต้องการขอใช้</h3>
+      <div class="field" style="max-width:340px;">
+        <label>รายการยา</label>
+        <select id="sub-drug"><option value="">— เลือกยา —</option></select>
+      </div>
+    </div>
+
+    <div class="card hidden" id="sub-form-card">
+      <h3 id="sub-form-title"></h3>
+
+      <div class="form-grid">
+        <div class="field"><label>ชื่อผู้ป่วย</label><input type="text" id="sub-patientName"></div>
+        <div class="field"><label>อายุ (ปี)</label><input type="number" id="sub-age" min="0"></div>
+        <div class="field"><label>HN</label><input type="text" id="sub-hn"></div>
+        <div class="field"><label>AN</label><input type="text" id="sub-an"></div>
+        <div class="field"><label>Ward</label><input type="text" id="sub-ward"></div>
+        <div class="field"><label>วันที่เริ่มใช้</label><input type="date" id="sub-startDate"></div>
+      </div>
+
+      <!-- ฟิลด์เฉพาะ antibiotic_culture (Ceftazidime) -->
+      <div class="form-grid hidden" id="sub-abx-fields">
+        <div class="field"><label>สิทธิการเบิก</label>
+          <select id="sub-rightsType">
+            <option value="UC">UC</option><option value="ประกันสังคม">ประกันสังคม</option>
+            <option value="เบิกได้">เบิกได้</option><option value="ชำระเงินเอง">ชำระเงินเอง</option>
+          </select>
+        </div>
+        <div class="field"><label>แผนก</label>
+          <select id="sub-department">
+            <option value="OPD">OPD</option><option value="ER">ER</option><option value="NCD">NCD</option><option value="IPD">IPD</option>
+          </select>
+        </div>
+        <div class="field"><label>ส่งเพาะเชื้อ</label>
+          <select id="sub-cultureSent"><option value="no">ไม่ได้เก็บ</option><option value="yes">เก็บแล้ว</option></select>
+        </div>
+        <div class="field"><label>ชนิดสิ่งส่งตรวจ</label><input type="text" id="sub-cultureSpecimenType" placeholder="Blood/Sputum/Pus/Urine/PD/อื่นๆ"></div>
+        <div class="field"><label>ทราบเชื้อก่อโรคหรือยัง</label>
+          <select id="sub-pathogenKnown"><option value="no">ไม่ทราบ</option><option value="yes">ทราบ</option></select>
+        </div>
+        <div class="field"><label>ชื่อเชื้อ (ถ้าทราบ)</label><input type="text" id="sub-pathogenName" placeholder="เช่น P.aeruginosa, E.coli ESBL+ve"></div>
+        <div class="field"><label>แหล่งการติดเชื้อ</label>
+          <select id="sub-infectionSource">
+            <option value="Community">Community infection</option>
+            <option value="Health care associated">Health care associated infection</option>
+            <option value="Nosocomial">Nosocomial infection</option>
+          </select>
+        </div>
+        <div class="field"><label>ระยะเวลาให้ยา (วัน)</label><input type="number" id="sub-durationDays" min="1"></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Diagnosis</label><input type="text" id="sub-diagnosis"></div>
+        <div class="field"><label>Underlying Disease</label><input type="text" id="sub-underlyingDisease"></div>
+        <div class="field"><label>ขนาดยาที่สั่งจ่าย</label><input type="text" id="sub-doseUsed" placeholder="เช่น 40 mg วันละครั้ง"></div>
+      </div>
+
+      <div class="criteria-box" id="sub-criteria-container"></div>
+
+      <div class="form-grid">
+        <div class="field"><label>แพทย์ผู้สั่งใช้</label><input type="text" id="sub-prescriberName"></div>
+        <div class="field"><label>เลขที่ใบประกอบวิชาชีพ</label><input type="text" id="sub-prescriberLicense"></div>
+      </div>
+
+      <button class="primary" id="btn-submit-due">บันทึกยืนยันการสั่งจ่าย</button>
+      <div class="msg" id="sub-msg"></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB 2: REVIEW ===== -->
+  <div class="panel" id="panel-review">
+    <div class="card">
+      <h3>⏳ รอเภสัชกรตรวจสอบ</h3>
+      <div id="review-pending-list"><div class="empty-state">กำลังโหลด...</div></div>
+    </div>
+    <div class="card">
+      <h3>🧫 รอยืนยันผลเพาะเชื้อ (Ceftazidime — เริ่มแบบ Empiric)</h3>
+      <div id="review-culture-list"><div class="empty-state">กำลังโหลด...</div></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB 3: REPORTS ===== -->
+  <div class="panel" id="panel-reports">
+    <div class="card">
+      <h3>📊 รายงานใบ DUE</h3>
+      <div class="report-controls">
+        <div class="field"><label>ตั้งแต่วันที่</label><input type="date" id="rpt-from"></div>
+        <div class="field"><label>ถึงวันที่</label><input type="date" id="rpt-to"></div>
+        <div class="field"><label>สถานะ</label>
+          <select id="rpt-status"><option value="">ทั้งหมด</option><option value="pending">รอตรวจสอบ</option>
+            <option value="approved">อนุมัติ</option><option value="rejected">ปฏิเสธ</option></select>
+        </div>
+        <button class="ghost" id="btn-rpt-today">วันนี้</button>
+        <button class="ghost" id="btn-rpt-week">สัปดาห์นี้</button>
+        <button class="ghost" id="btn-rpt-month">เดือนนี้</button>
+        <button class="primary" id="btn-run-report">ดูรายงาน</button>
+      </div>
+      <div class="stat-grid" id="rpt-stats" style="display:none;"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>วันที่</th><th>ยา</th><th>ผู้ป่วย (HN)</th><th>แพทย์</th><th>สถานะ</th><th>เภสัชกร</th></tr></thead>
+          <tbody id="rpt-tbody"><tr><td colspan="6" class="empty-state">เลือกช่วงเวลาแล้วกด "ดูรายงาน"</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Culture confirmation modal -->
+<div class="modal-overlay hidden" id="culture-modal">
+  <div class="modal">
+    <h3>🧫 บันทึกผลเพาะเชื้อ</h3>
+    <div class="field" style="margin-bottom:12px;"><label>ผู้กรอกข้อมูล (บทบาท)</label>
+      <select id="cm-role"><option value="แพทย์">แพทย์</option><option value="พยาบาล">พยาบาล</option><option value="เภสัชกร">เภสัชกร</option></select>
+    </div>
+    <div class="field" style="margin-bottom:12px;"><label>ผลเพาะเชื้อ / เชื้อที่พบ</label>
+      <input type="text" id="cm-pathogen" placeholder="เช่น P.aeruginosa (ไวต่อยา Ceftazidime)"></div>
+    <div class="field" style="margin-bottom:16px;"><label>บันทึกเพิ่มเติม</label>
+      <textarea id="cm-note" placeholder="เช่น เปลี่ยนเป็น Document therapy, ปรับยา, หยุดยา ฯลฯ"></textarea></div>
+    <div style="display:flex;gap:10px;">
+      <button class="primary" id="btn-save-culture">บันทึก</button>
+      <button class="ghost" id="btn-cancel-culture">ยกเลิก</button>
+    </div>
+    <div class="msg" id="culture-msg"></div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyToHBwKzpSEjNvuZdjWvUrqMcOeIlwRRlA0iVoBh1xzdRVCSlMKXnY_MqBz0HhGEqtRg/exec';
+const AUTH_KEY = 'dic-auth-v1';
+
+let auth = null;
+let dueDrugs = [];
+let currentDrug = null;
+let cultureModalTargetId = null;
+
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function todayStr(){ const now = new Date(); const bkk = new Date(now.getTime() + 7*60*60*1000); return bkk.toISOString().slice(0,10); }
+function fmtDateThai(d){ if(!d) return '-'; const p = String(d).slice(0,10).split('-'); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
+
+// ---------- Auth ----------
+function tryRestoreAuth(){
+  try{
+    const raw = sessionStorage.getItem(AUTH_KEY);
+    if(raw){ auth = JSON.parse(raw); return true; }
+  }catch(e){}
+  return false;
+}
+function showApp(){
+  document.getElementById('login-gate').classList.add('hidden');
+  document.getElementById('app-main').classList.remove('hidden');
+  document.getElementById('whoami').innerHTML = `ผู้ใช้งาน: <b>${escapeHtml(auth.name)}</b> · <a id="logout-link">ออกจากระบบ</a>`;
+  document.getElementById('logout-link').addEventListener('click', ()=>{
+    sessionStorage.removeItem(AUTH_KEY); location.reload();
+  });
+  init();
+}
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-code').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+function doLogin(){
+  const code = document.getElementById('login-code').value.trim();
+  const errEl = document.getElementById('login-error');
+  if(code.length !== 6){ errEl.textContent = 'กรุณากรอกรหัส 6 หลัก'; return; }
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verifyCode', code})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok || !data.valid){ errEl.textContent = 'รหัสไม่ถูกต้องหรือไม่มีสิทธิ์เข้าใช้งาน'; return; }
+      auth = {code, name: data.name};
+      sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+      showApp();
+    }).catch(e=>{ errEl.textContent = 'เชื่อมต่อไม่สำเร็จ: '+e.message; });
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'review') loadReviewLists();
+  });
+});
+
+// ---------- Init: load public dueDrugs config ----------
+function init(){
+  fetch(API_URL).then(r=>r.json()).then(data=>{
+    if(!data.ok) throw new Error(data.error);
+    dueDrugs = data.dueDrugs || [];
+    const sel = document.getElementById('sub-drug');
+    sel.innerHTML = '<option value="">— เลือกยา —</option>' +
+      dueDrugs.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.drugName)} (${escapeHtml(d.strengthLabel||'')})</option>`).join('');
+  }).catch(e=> alert('โหลดรายการยาไม่สำเร็จ: '+e.message));
+  document.getElementById('sub-startDate').value = todayStr();
+  loadReviewLists();
+}
+
+// ---------- Tab 1: Submit form ----------
+document.getElementById('sub-drug').addEventListener('change', e=>{
+  const drug = dueDrugs.find(d => d.id === e.target.value);
+  currentDrug = drug || null;
+  if(!drug){ document.getElementById('sub-form-card').classList.add('hidden'); return; }
+  document.getElementById('sub-form-card').classList.remove('hidden');
+  document.getElementById('sub-form-title').textContent = `📝 แบบขออนุมัติใช้ยา: ${drug.drugName} ${drug.strengthLabel||''}`;
+  document.getElementById('sub-abx-fields').classList.toggle('hidden', drug.formType !== 'antibiotic_culture');
+  renderCriteria(drug);
+});
+
+function renderCriteria(drug){
+  const container = document.getElementById('sub-criteria-container');
+  let criteria;
+  try{ criteria = JSON.parse(drug.criteriaJson || '[]'); }catch(e){ criteria = []; }
+  container.innerHTML = '<div class="criteria-group-label">ข้อบ่งใช้ (เลือกอย่างน้อย 1 ข้อ)</div>' +
+    criteria.map(item => renderCriteriaItem(item)).join('');
+
+  container.querySelectorAll('.crit-check-with-text').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const textInput = container.querySelector(`.crit-text-for-${CSS.escape(chk.dataset.id)}`);
+      if(textInput) textInput.classList.toggle('show', chk.checked);
+    });
+  });
+}
+function renderCriteriaItem(item, isSub){
+  const label = item.groupLabel || item.text || '';
+  let html = `<div class="criteria-item ${isSub?'':''}">`;
+  if(item.groupLabel){
+    html += `<div class="criteria-group-label">${escapeHtml(item.groupLabel)}</div>`;
+  } else {
+    const hasText = !!item.hasTextInput;
+    html += `<label>
+      <input type="checkbox" class="crit-checkbox ${hasText?'crit-check-with-text':''}" data-id="${escapeHtml(item.id)}" data-text="${escapeHtml(item.text||'')}" ${hasText?`data-id="${escapeHtml(item.id)}"`:''}>
+      <span>${escapeHtml(item.text||'')}</span>
+    </label>`;
+    if(hasText){
+      html += `<input type="text" class="criteria-text-input crit-text-for-${escapeHtml(item.id)}" data-owner="${escapeHtml(item.id)}" placeholder="${escapeHtml(item.textInputLabel||'ระบุ')}">`;
+    }
+  }
+  if(item.subOptions && item.subOptions.length){
+    html += `<div class="criteria-sub">` + item.subOptions.map(sub => renderCriteriaItem(sub, true)).join('') + `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+document.getElementById('btn-submit-due').addEventListener('click', ()=>{
+  const btn = document.getElementById('btn-submit-due');
+  const msg = document.getElementById('sub-msg');
+  if(!currentDrug){ msg.className='msg error'; msg.textContent='กรุณาเลือกยาก่อน'; return; }
+
+  const selected = [];
+  const textInputs = {};
+  document.querySelectorAll('#sub-criteria-container .crit-checkbox:checked').forEach(chk=>{
+    selected.push(chk.dataset.id);
+  });
+  document.querySelectorAll('#sub-criteria-container .criteria-text-input.show').forEach(inp=>{
+    textInputs[inp.dataset.owner] = inp.value.trim();
+  });
+
+  if(!selected.length){ msg.className='msg error'; msg.textContent='กรุณาเลือกเกณฑ์ข้อบ่งใช้อย่างน้อย 1 ข้อ'; return; }
+
+  const entry = {
+    drugId: currentDrug.id,
+    drugName: currentDrug.drugName,
+    patientName: document.getElementById('sub-patientName').value.trim(),
+    age: document.getElementById('sub-age').value,
+    hn: document.getElementById('sub-hn').value.trim(),
+    an: document.getElementById('sub-an').value.trim(),
+    ward: document.getElementById('sub-ward').value.trim(),
+    startDate: document.getElementById('sub-startDate').value || todayStr(),
+    diagnosis: document.getElementById('sub-diagnosis').value.trim(),
+    underlyingDisease: document.getElementById('sub-underlyingDisease').value.trim(),
+    doseUsed: document.getElementById('sub-doseUsed').value.trim(),
+    criteriaSelectedJson: JSON.stringify({selected, textInputs}),
+    prescriberName: document.getElementById('sub-prescriberName').value.trim(),
+    prescriberLicense: document.getElementById('sub-prescriberLicense').value.trim()
+  };
+
+  if(currentDrug.formType === 'antibiotic_culture'){
+    entry.rightsType = document.getElementById('sub-rightsType').value;
+    entry.department = document.getElementById('sub-department').value;
+    entry.cultureSent = document.getElementById('sub-cultureSent').value;
+    entry.cultureSpecimenType = document.getElementById('sub-cultureSpecimenType').value.trim();
+    entry.pathogenKnown = document.getElementById('sub-pathogenKnown').value;
+    entry.pathogenName = document.getElementById('sub-pathogenName').value.trim();
+    entry.infectionSource = document.getElementById('sub-infectionSource').value;
+    entry.durationDays = document.getElementById('sub-durationDays').value;
+    // อนุมาน indicationStage จากเกณฑ์ที่เลือก (1.x = empiric, 2.x = document)
+    entry.indicationStage = selected.some(id => id === '1' || id.startsWith('1.')) ? 'empiric' : 'document';
+  }
+
+  if(!entry.patientName || !entry.hn || !entry.prescriberName){
+    msg.className='msg error'; msg.textContent='กรุณากรอกชื่อผู้ป่วย, HN, และแพทย์ผู้สั่งใช้ให้ครบ'; return;
+  }
+
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'saveDueRequest', code: auth.code, entry})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok) throw new Error(data.error||'unknown');
+      msg.className='msg success'; msg.textContent='บันทึกยืนยันการสั่งจ่ายสำเร็จ ✓ รอเภสัชกรตรวจสอบ';
+      document.getElementById('sub-drug').value = '';
+      document.getElementById('sub-form-card').classList.add('hidden');
+      ['sub-patientName','sub-age','sub-hn','sub-an','sub-ward','sub-diagnosis','sub-underlyingDisease','sub-doseUsed',
+       'sub-prescriberName','sub-prescriberLicense','sub-cultureSpecimenType','sub-pathogenName','sub-durationDays']
+        .forEach(id => document.getElementById(id).value = '');
+      loadReviewLists();
+    }).catch(e=>{ msg.className='msg error'; msg.textContent='บันทึกไม่สำเร็จ: '+e.message; })
+    .finally(()=>{ btn.disabled=false; btn.textContent='บันทึกยืนยันการสั่งจ่าย'; });
+});
+
+// ---------- Tab 2: Review ----------
+function loadReviewLists(){
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'listDueRequests', code: auth.code})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok) throw new Error(data.error);
+      const records = data.records || [];
+      renderPendingList(records.filter(r => r.pharmacistStatus === 'pending'));
+      renderCultureList(records.filter(r => r.pharmacistStatus === 'approved' && r.indicationStage === 'empiric' && !r.cultureConfirmedAt));
+    }).catch(e=>{
+      document.getElementById('review-pending-list').innerHTML = `<div class="empty-state">โหลดไม่สำเร็จ: ${escapeHtml(e.message)}</div>`;
+    });
+}
+
+function criteriaSummaryText(record){
+  try{
+    const drug = dueDrugs.find(d => d.id === record.drugId);
+    const crit = JSON.parse(drug ? drug.criteriaJson : '[]');
+    const sel = JSON.parse(record.criteriaSelectedJson || '{}');
+    const flat = [];
+    function walk(items){ items.forEach(it=>{ if(!it.groupLabel) flat.push(it); if(it.subOptions) walk(it.subOptions); }); }
+    walk(crit);
+    return (sel.selected||[]).map(id => {
+      const found = flat.find(f=>f.id===id);
+      let t = found ? found.text : id;
+      if(sel.textInputs && sel.textInputs[id]) t += ` (${sel.textInputs[id]})`;
+      return t;
+    }).join('; ');
+  }catch(e){ return '-'; }
+}
+
+function renderPendingList(records){
+  const el = document.getElementById('review-pending-list');
+  if(!records.length){ el.innerHTML = '<div class="empty-state">ไม่มีรายการรอตรวจสอบ</div>'; return; }
+  records.sort((a,b)=> (b.submittedAt||'').localeCompare(a.submittedAt||''));
+  el.innerHTML = records.map(r => `
+    <div class="req-item" data-id="${escapeHtml(r.id)}">
+      <div class="req-item-head">
+        <span class="drug-name">${escapeHtml(r.drugName)}</span>
+        <span class="badge pending">รอตรวจสอบ</span>
+      </div>
+      <div class="req-item-meta">
+        ผู้ป่วย: ${escapeHtml(r.patientName)} (HN ${escapeHtml(r.hn)}, อายุ ${escapeHtml(r.age)} ปี, Ward ${escapeHtml(r.ward||'-')})<br>
+        Diagnosis: ${escapeHtml(r.diagnosis||'-')} · ขนาดยา: ${escapeHtml(r.doseUsed||'-')}<br>
+        แพทย์ผู้สั่ง: ${escapeHtml(r.prescriberName)}<br>
+        เกณฑ์ที่เลือก: ${escapeHtml(criteriaSummaryText(r))}<br>
+        ยื่นเมื่อ: ${escapeHtml((r.submittedAt||'').slice(0,16).replace('T',' '))}
+      </div>
+      <div class="req-item-actions">
+        <button class="approve" data-approve="${escapeHtml(r.id)}">✓ อนุมัติ</button>
+        <button class="reject" data-reject="${escapeHtml(r.id)}">✕ ปฏิเสธ</button>
+      </div>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('[data-approve]').forEach(btn=>{
+    btn.addEventListener('click', ()=> decideDue(btn.dataset.approve, 'approved'));
+  });
+  el.querySelectorAll('[data-reject]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const reason = prompt('เหตุผลที่ปฏิเสธ:');
+      if(reason === null) return;
+      decideDue(btn.dataset.reject, 'rejected', reason);
+    });
+  });
+}
+function decideDue(id, decision, reason){
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'decideDueRequest', code: auth.code, id, decision, reason})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok) throw new Error(data.error);
+      loadReviewLists();
+    }).catch(e=> alert('ดำเนินการไม่สำเร็จ: '+e.message));
+}
+
+function renderCultureList(records){
+  const el = document.getElementById('review-culture-list');
+  if(!records.length){ el.innerHTML = '<div class="empty-state">ไม่มีรายการรอยืนยันผลเพาะเชื้อ</div>'; return; }
+  el.innerHTML = records.map(r => `
+    <div class="req-item">
+      <div class="req-item-head">
+        <span class="drug-name">${escapeHtml(r.drugName)}</span>
+        <span class="badge culture-pending">รอผลเพาะเชื้อ</span>
+      </div>
+      <div class="req-item-meta">
+        ผู้ป่วย: ${escapeHtml(r.patientName)} (HN ${escapeHtml(r.hn)}) · เริ่มยา: ${fmtDateThai(r.startDate)}<br>
+        ส่งเพาะเชื้อ: ${r.cultureSent==='yes' ? 'เก็บแล้ว ('+escapeHtml(r.cultureSpecimenType||'-')+')' : 'ยังไม่ได้เก็บ'}
+      </div>
+      <div class="req-item-actions">
+        <button class="approve" data-culture="${escapeHtml(r.id)}">🧫 บันทึกผลเพาะเชื้อ</button>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-culture]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      cultureModalTargetId = btn.dataset.culture;
+      document.getElementById('cm-pathogen').value = '';
+      document.getElementById('cm-note').value = '';
+      document.getElementById('culture-msg').textContent = '';
+      document.getElementById('culture-modal').classList.remove('hidden');
+    });
+  });
+}
+document.getElementById('btn-cancel-culture').addEventListener('click', ()=>{
+  document.getElementById('culture-modal').classList.add('hidden');
+});
+document.getElementById('btn-save-culture').addEventListener('click', ()=>{
+  const btn = document.getElementById('btn-save-culture');
+  const msg = document.getElementById('culture-msg');
+  const entry = {
+    pathogenName: document.getElementById('cm-pathogen').value.trim(),
+    cultureResultNote: document.getElementById('cm-note').value.trim(),
+    cultureConfirmedByRole: document.getElementById('cm-role').value,
+    indicationStage: 'document'
+  };
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'updateDueCulture', code: auth.code, id: cultureModalTargetId, entry})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok) throw new Error(data.error);
+      document.getElementById('culture-modal').classList.add('hidden');
+      loadReviewLists();
+    }).catch(e=>{ msg.className='msg error'; msg.textContent='บันทึกไม่สำเร็จ: '+e.message; })
+    .finally(()=>{ btn.disabled=false; btn.textContent='บันทึก'; });
+});
+
+// ---------- Tab 3: Reports ----------
+document.getElementById('btn-rpt-today').addEventListener('click', ()=>{
+  document.getElementById('rpt-from').value = todayStr();
+  document.getElementById('rpt-to').value = todayStr();
+});
+document.getElementById('btn-rpt-week').addEventListener('click', ()=>{
+  const to = new Date(); const from = new Date(); from.setDate(from.getDate()-6);
+  document.getElementById('rpt-from').value = from.toISOString().slice(0,10);
+  document.getElementById('rpt-to').value = to.toISOString().slice(0,10);
+});
+document.getElementById('btn-rpt-month').addEventListener('click', ()=>{
+  const now = new Date();
+  document.getElementById('rpt-from').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  document.getElementById('rpt-to').value = todayStr();
+});
+document.getElementById('btn-run-report').addEventListener('click', ()=>{
+  const dateFrom = document.getElementById('rpt-from').value;
+  const dateTo = document.getElementById('rpt-to').value;
+  const pharmacistStatus = document.getElementById('rpt-status').value;
+  fetch(API_URL, {method:'POST', body: JSON.stringify({action:'listDueRequests', code: auth.code, dateFrom, dateTo, pharmacistStatus})})
+    .then(r=>r.json()).then(data=>{
+      if(!data.ok) throw new Error(data.error);
+      const records = (data.records||[]).sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
+      const counts = {pending:0, approved:0, rejected:0};
+      records.forEach(r=> counts[r.pharmacistStatus] = (counts[r.pharmacistStatus]||0)+1);
+      document.getElementById('rpt-stats').style.display = 'grid';
+      document.getElementById('rpt-stats').innerHTML = `
+        <div class="stat-box"><div class="num">${records.length}</div><div class="label">รวมทั้งหมด</div></div>
+        <div class="stat-box"><div class="num">${counts.pending||0}</div><div class="label">รอตรวจสอบ</div></div>
+        <div class="stat-box"><div class="num">${counts.approved||0}</div><div class="label">อนุมัติ</div></div>
+        <div class="stat-box"><div class="num">${counts.rejected||0}</div><div class="label">ปฏิเสธ</div></div>
+      `;
+      const statusLabel = {pending:'รอตรวจสอบ', approved:'อนุมัติ', rejected:'ปฏิเสธ'};
+      const tbody = document.getElementById('rpt-tbody');
+      if(!records.length){ tbody.innerHTML = '<tr><td colspan="6" class="empty-state">ไม่พบรายการในช่วงเวลานี้</td></tr>'; return; }
+      tbody.innerHTML = records.map(r => `
+        <tr>
+          <td>${fmtDateThai(r.startDate)}</td>
+          <td>${escapeHtml(r.drugName)}</td>
+          <td>${escapeHtml(r.patientName)} (${escapeHtml(r.hn)})</td>
+          <td>${escapeHtml(r.prescriberName)}</td>
+          <td><span class="badge ${r.pharmacistStatus}">${statusLabel[r.pharmacistStatus]||r.pharmacistStatus}</span></td>
+          <td>${escapeHtml(r.pharmacistName||'-')}</td>
+        </tr>
+      `).join('');
+    }).catch(e=> alert('ดึงรายงานไม่สำเร็จ: '+e.message));
+});
+
+// ---------- boot ----------
+if(tryRestoreAuth()){ showApp(); }
+</script>
+</body>
+</html>
