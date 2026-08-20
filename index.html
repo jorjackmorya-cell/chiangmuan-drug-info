@@ -109,11 +109,10 @@
         <h4>ปรับขนาดยาตามไต</h4>
         <p>คำนวณ eGFR/CrCl และค้นหาข้อมูลการปรับขนาดยาตามไต</p>
       </div>
-      <div class="info-card pending">
+      <div class="info-card live" id="card-due" style="border-color:var(--teal-deep);">
         <div class="icon">📋</div>
         <h4>ใบ DUE</h4>
         <p>แบบฟอร์มขอใช้ยาที่ต้องประเมิน (ต้อง login)</p>
-        <span class="soon-tag">เร็วๆ นี้</span>
       </div>
     </div>
   </div>
@@ -400,6 +399,7 @@ document.getElementById('card-druginfo').addEventListener('click', showDrugInfoV
 document.getElementById('card-had').addEventListener('click', ()=>{ window.location.href = 'had.html'; });
 document.getElementById('card-pediatric').addEventListener('click', ()=>{ window.location.href = 'pediatric.html'; });
 document.getElementById('card-renal').addEventListener('click', ()=>{ window.location.href = 'renal.html'; });
+document.getElementById('card-due').addEventListener('click', ()=>{ window.location.href = 'due.html'; });
 document.getElementById('back-to-landing').addEventListener('click', (e)=>{ e.preventDefault(); showLandingView(); });
 
 refreshAuthUI();
