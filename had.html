@@ -779,14 +779,21 @@ async function startEpisode(had){
 
 function summaryBarHtml(){
   const e = currentEpisode;
+  const rounds = e.doseRounds || [];
+  const doseHistoryHtml = rounds.length > 1
+    ? `<div style="width:100%;font-size:12px;color:var(--ink-soft);margin-top:4px;">
+        📜 ประวัติการให้ยา: ${rounds.map(r => `รอบ ${r.round}: <b>${escapeHtml(r.doseInfo||'-')}</b> (${fmtTime(new Date(r.startTime))})`).join(' → ')}
+       </div>`
+    : '';
   return `<div class="form-card" style="position:sticky;top:0;z-index:50;background:#fff;border:2px solid var(--teal);padding:12px 18px;margin-bottom:14px;">
     <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;">
       <div><span style="color:var(--ink-soft);">ผู้ป่วย:</span> <b>${escapeHtml(e.patientHN)} ${escapeHtml(e.patientName||'')}</b></div>
       <div><span style="color:var(--ink-soft);">หอ/แผนก:</span> <b>${escapeHtml(e.ward||'-')}</b></div>
       <div><span style="color:var(--ink-soft);">ยา:</span> <b>${escapeHtml(e.hadName)}</b></div>
-      <div><span style="color:var(--ink-soft);">ขนาดที่ให้จริง:</span> <b>${escapeHtml(e.doseInfo||'-')}</b></div>
+      <div><span style="color:var(--ink-soft);">ขนาดที่ให้ล่าสุด:</span> <b>${escapeHtml(e.doseInfo||'-')}</b></div>
       <div><span style="color:var(--ink-soft);">เตรียมยาโดย:</span> <b>${escapeHtml(e.preparedBy||'-')}</b></div>
       <div><span style="color:var(--ink-soft);">บันทึกโดย:</span> <b>${escapeHtml(e.nurseName||'-')}</b></div>
+      ${doseHistoryHtml}
     </div>
   </div>`;
 }
@@ -855,6 +862,7 @@ function renderCheckpointTable(){
       <div style="margin-top:12px;">
         <button class="ghost small" id="btn-add-cp-primary">+ เพิ่มช่วงเวลาถัดไป (Vital Sign)${currentHadDrug.recurrenceMinutes ? ' ทุก '+currentHadDrug.recurrenceMinutes+' นาที' : ''}</button>
         ${currentHadDrug.doseRepeatable ? `<button class="ghost small" id="btn-add-dose" style="margin-left:8px;">+ เพิ่ม Dose (ขณะให้ยา)</button>` : ''}
+        <button class="ghost small" id="btn-add-dose-round" style="margin-left:8px;border-color:var(--teal);color:var(--teal-deep);">🔁 เริ่มรอบให้ยาใหม่ (Dose ซ้ำ/เพิ่มขนาด)</button>
       </div>
 
       ${secondaryFields.length ? `
@@ -907,6 +915,7 @@ function renderCheckpointTable(){
   document.getElementById('btn-add-cp-primary').addEventListener('click', ()=> addExtraCheckpoint('primary'));
   const doseBtn = document.getElementById('btn-add-dose');
   if(doseBtn) doseBtn.addEventListener('click', addDoseCheckpoint);
+  document.getElementById('btn-add-dose-round').addEventListener('click', addNewDoseRound);
   const secBtn = document.getElementById('btn-add-cp-secondary');
   if(secBtn) secBtn.addEventListener('click', ()=> addExtraCheckpoint('secondary'));
   const doseBtnSecondary = document.getElementById('btn-add-dose-secondary');
@@ -1011,6 +1020,42 @@ function addDoseCheckpoint(){
   }
   renderCheckpointTable();
   toast(`เพิ่มจุดติดตาม Dose ${doseNum} แล้ว (ทุกตาราง) — กด "+เพิ่มช่วงเวลาถัดไป" ต่อเพื่อติดตามหลังให้ยาต่อไป`, 4000);
+}
+
+function addNewDoseRound(){
+  // สำหรับกรณีให้ยาซ้ำ/เพิ่มขนาดเพื่อคุมอาการ (เช่น Amiodarone 150mg แล้วตามด้วย 300mg, Adrenaline หลายรอบใน cardiac arrest)
+  // ต่างจาก addDoseCheckpoint (เพิ่มแค่ 1 จุด ณ เวลาที่กด) — ฟังก์ชันนี้เริ่ม "ตารางติดตามมาตรฐานทั้งชุดใหม่"
+  // (0, 15, 30, 45 นาที ฯลฯ ตาม checkpointMinutes ของยานั้น) โดยนับเวลาใหม่จาก "ตอนนี้" ไม่ใช่ offset ต่อจากรอบเดิม
+  // รอบเก่ายังอยู่ครบในตาราง (ไม่ลบ) แค่ไม่มีการเพิ่มจุดใหม่ให้รอบเก่าอีก — เปิดใช้ได้กับยาทุกตัว ไม่ต้องตั้งค่า flag
+  if(!currentEpisode) return;
+  currentEpisode.doseRounds = currentEpisode.doseRounds || [{ round:1, doseInfo: currentEpisode.doseInfo, startTime: currentEpisode.startTime }];
+  const nextRound = currentEpisode.doseRounds.length + 1;
+
+  const unit = (currentHadDrug && currentHadDrug.doseUnitHint) || '';
+  const newDoseRaw = prompt(`ขนาดยาที่ให้เพิ่ม (รอบที่ ${nextRound})${unit ? ' — หน่วย: '+unit : ''}:`, '');
+  if(newDoseRaw === null) return; // ผู้ใช้กดยกเลิก
+  const newDoseInfo = newDoseRaw.trim() ? (newDoseRaw.trim() + (unit ? ' '+unit : '')) : currentEpisode.doseInfo;
+
+  const now = new Date();
+  const roundPrefix = `รอบให้ยาที่ ${nextRound} - `;
+
+  const newPrimary = buildCheckpointList(currentHadDrug, now).map(cp => ({
+    ...cp, label: roundPrefix + cp.label, time: new Date(cp.time), saved:false, values:{}
+  }));
+  currentEpisode.checkpoints.push(...newPrimary);
+
+  if(currentHadDrug.secondaryFields && currentHadDrug.secondaryFields.trim()){
+    const newSecondary = buildSecondaryCheckpointList(currentHadDrug, now).map(cp => ({
+      ...cp, label: roundPrefix + cp.label, time: new Date(cp.time), saved:false, values:{}
+    }));
+    currentEpisode.secondaryCheckpoints.push(...newSecondary);
+  }
+
+  currentEpisode.doseRounds.push({ round: nextRound, doseInfo: newDoseInfo, startTime: now.toISOString() });
+  currentEpisode.doseInfo = newDoseInfo; // การบันทึกครั้งถัดไป (รอบใหม่) จะแนบขนาดยานี้ — แถวที่บันทึกไปแล้วของรอบเก่าไม่เปลี่ยนแปลงย้อนหลัง
+
+  renderCheckpointTable();
+  toast(`เริ่มรอบให้ยาที่ ${nextRound} แล้ว (ขนาด ${escapeHtml(newDoseInfo||'-')}) — ตารางติดตามเริ่มนับใหม่จากตอนนี้ครบทุกช่วงเวลา`, 5000);
 }
 
 async function deleteCheckpointByIdx(which, idx){
@@ -1217,11 +1262,25 @@ function resumeEpisode(recordId, rows){
     return { effect: ov.effect||'', occurredAt: r.checkpointTime ? fmtTime(new Date(r.checkpointTime)) : '-', management: ov.management||'' };
   });
 
+  // สร้างประวัติ "รอบให้ยา" ย้อนหลังจากแถวที่บันทึกไว้ (label ขึ้นต้นด้วย "รอบให้ยาที่ N -") — รอบ 1 คือค่าตั้งต้นของ episode เสมอ
+  const roundMap = {};
+  rows.forEach(r=>{
+    const m = /^รอบให้ยาที่ (\d+) - /.exec(r.checkpointLabel||'');
+    if(!m) return;
+    const n = parseInt(m[1],10);
+    if(!roundMap[n] || new Date(r.checkpointTime) < new Date(roundMap[n].startTime)){
+      roundMap[n] = { round:n, doseInfo: r.doseInfo || first.doseInfo, startTime: r.checkpointTime };
+    }
+  });
+  const doseRounds = [{ round:1, doseInfo: first.doseInfo, startTime: first.startTime }]
+    .concat(Object.values(roundMap)).sort((a,b)=> a.round - b.round);
+  const latestDoseInfo = doseRounds[doseRounds.length-1].doseInfo || first.doseInfo;
+
   currentEpisode = {
     recordId, hadId: had.id, hadName: had.name,
     patientHN: first.patientHN, patientName: first.patientName, ward: first.ward,
-    weight: first.weight, doseInfo: first.doseInfo, nurseName: first.nurseName, preparedBy: first.preparedBy||'',
-    startTime: first.startTime, checkpoints, secondaryCheckpoints, sideEffectLog
+    weight: first.weight, doseInfo: latestDoseInfo, nurseName: first.nurseName, preparedBy: first.preparedBy||'',
+    startTime: first.startTime, checkpoints, secondaryCheckpoints, sideEffectLog, doseRounds
   };
   document.getElementById('episode-status').textContent = `กำลังติดตามต่อ — เริ่มเวลา ${fmtTime(startTime)}`;
   renderCheckpointTable();
