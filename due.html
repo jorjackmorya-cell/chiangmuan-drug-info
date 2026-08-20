@@ -180,7 +180,15 @@
         <div class="field"><label>ส่งเพาะเชื้อ</label>
           <select id="sub-cultureSent"><option value="no">ไม่ได้เก็บ</option><option value="yes">เก็บแล้ว</option></select>
         </div>
-        <div class="field"><label>ชนิดสิ่งส่งตรวจ</label><input type="text" id="sub-cultureSpecimenType" placeholder="Blood/Sputum/Pus/Urine/PD/อื่นๆ"></div>
+        <div class="field"><label>ชนิดสิ่งส่งตรวจ</label>
+          <select id="sub-cultureSpecimenType">
+            <option value="Blood">Blood</option><option value="Sputum">Sputum</option>
+            <option value="Urine">Urine</option><option value="Pustule">Pustule</option>
+            <option value="Fluid">Fluid</option><option value="__other__">อื่นๆ (ระบุ)</option>
+          </select>
+        </div>
+        <div class="field hidden" id="sub-cultureSpecimenOther-wrap"><label>ระบุชนิดสิ่งส่งตรวจ</label>
+          <input type="text" id="sub-cultureSpecimenOther" placeholder="พิมพ์ชนิดสิ่งส่งตรวจ"></div>
         <div class="field"><label>ทราบเชื้อก่อโรคหรือยัง</label>
           <select id="sub-pathogenKnown"><option value="no">ไม่ทราบ</option><option value="yes">ทราบ</option></select>
         </div>
@@ -193,6 +201,11 @@
           </select>
         </div>
         <div class="field"><label>ระยะเวลาให้ยา (วัน)</label><input type="number" id="sub-durationDays" min="1"></div>
+        <div class="field"><label>CrCl (mL/min) — ถ้าทราบ</label><input type="number" id="sub-crCl" step="0.1" min="0" placeholder="เว้นว่างถ้าไม่ทราบ/ปกติ"></div>
+      </div>
+      <div class="criteria-box hidden" id="sub-renal-box" style="margin-top:-4px;">
+        <div class="criteria-group-label">🫘 การปรับขนาดยาตามไต (Ceftazidime)</div>
+        <div id="sub-renal-note" style="font-size:12.5px;line-height:1.9;color:var(--ink-soft);"></div>
       </div>
 
       <div class="form-grid">
@@ -204,8 +217,10 @@
       <div class="criteria-box" id="sub-criteria-container"></div>
 
       <div class="form-grid">
-        <div class="field"><label>แพทย์ผู้สั่งใช้</label><input type="text" id="sub-prescriberName"></div>
-        <div class="field"><label>เลขที่ใบประกอบวิชาชีพ</label><input type="text" id="sub-prescriberLicense"></div>
+        <div class="field"><label>แพทย์ผู้สั่งใช้</label>
+          <select id="sub-prescriberName"><option value="">— เลือกแพทย์ —</option></select>
+        </div>
+        <div class="field"><label>เลขที่ใบประกอบวิชาชีพ</label><input type="text" id="sub-prescriberLicense" readonly style="background:var(--gray-soft);"></div>
       </div>
 
       <button class="primary" id="btn-submit-due">บันทึกยืนยันการสั่งจ่าย</button>
@@ -274,6 +289,16 @@
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbyToHBwKzpSEjNvuZdjWvUrqMcOeIlwRRlA0iVoBh1xzdRVCSlMKXnY_MqBz0HhGEqtRg/exec';
 const AUTH_KEY = 'dic-auth-v1';
+const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+const DOCTORS = [
+  {name:'นพ.วัฒนศักดิ์ สุวรรณโน', license:'37813'},
+  {name:'พญ.กรวิการ์ ศรีเรือน', license:'46935'},
+  {name:'นพ.ฉัตร เชาวนาดิศัย', license:'64482'},
+  {name:'นพ.วิชิตพล อุ่มอ่อนศรี', license:'67371'},
+  {name:'นพ.วรุตม์ อินวงค์', license:'67366'},
+  {name:'นพ.ชยุตพล ชัยวร', license:'70000'}
+];
 
 let auth = null;
 let dueDrugs = [];
@@ -284,12 +309,20 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&'
 function todayStr(){ const now = new Date(); const bkk = new Date(now.getTime() + 7*60*60*1000); return bkk.toISOString().slice(0,10); }
 function fmtDateThai(d){ if(!d) return '-'; const p = String(d).slice(0,10).split('-'); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : d; }
 
-// ---------- Auth ----------
+// ---------- Auth (เก็บ/อ่านรูปแบบเดียวกับ index.html เป๊ะ — {code, name, at} + เช็คหมดอายุ 12 ชม.) ----------
+function getAuth(){
+  let a;
+  try{ a = JSON.parse(sessionStorage.getItem(AUTH_KEY)); }catch(e){ return null; }
+  if(!a) return null;
+  if(!a.at || (Date.now()-a.at) > SESSION_MAX_AGE_MS){ sessionStorage.removeItem(AUTH_KEY); return null; }
+  return a;
+}
+function setAuth(code, name){
+  sessionStorage.setItem(AUTH_KEY, JSON.stringify({code, name, at: Date.now()}));
+}
 function tryRestoreAuth(){
-  try{
-    const raw = sessionStorage.getItem(AUTH_KEY);
-    if(raw){ auth = JSON.parse(raw); return true; }
-  }catch(e){}
+  const a = getAuth();
+  if(a){ auth = a; return true; }
   return false;
 }
 function showApp(){
@@ -310,8 +343,8 @@ function doLogin(){
   fetch(API_URL, {method:'POST', body: JSON.stringify({action:'verifyCode', code})})
     .then(r=>r.json()).then(data=>{
       if(!data.ok || !data.valid){ errEl.textContent = 'รหัสไม่ถูกต้องหรือไม่มีสิทธิ์เข้าใช้งาน'; return; }
+      setAuth(code, data.name);
       auth = {code, name: data.name};
-      sessionStorage.setItem(AUTH_KEY, JSON.stringify(auth));
       showApp();
     }).catch(e=>{ errEl.textContent = 'เชื่อมต่อไม่สำเร็จ: '+e.message; });
 }
@@ -337,6 +370,13 @@ function init(){
       dueDrugs.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.drugName)} (${escapeHtml(d.strengthLabel||'')})</option>`).join('');
   }).catch(e=> alert('โหลดรายการยาไม่สำเร็จ: '+e.message));
   document.getElementById('sub-startDate').value = todayStr();
+  const docSel = document.getElementById('sub-prescriberName');
+  docSel.innerHTML = '<option value="">— เลือกแพทย์ —</option>' +
+    DOCTORS.map(d => `<option value="${escapeHtml(d.name)}" data-license="${escapeHtml(d.license)}">${escapeHtml(d.name)}</option>`).join('');
+  docSel.addEventListener('change', ()=>{
+    const opt = docSel.selectedOptions[0];
+    document.getElementById('sub-prescriberLicense').value = opt ? (opt.dataset.license || '') : '';
+  });
   loadReviewLists();
 }
 
@@ -347,9 +387,38 @@ document.getElementById('sub-drug').addEventListener('change', e=>{
   if(!drug){ document.getElementById('sub-form-card').classList.add('hidden'); return; }
   document.getElementById('sub-form-card').classList.remove('hidden');
   document.getElementById('sub-form-title').textContent = `📝 แบบขออนุมัติใช้ยา: ${drug.drugName} ${drug.strengthLabel||''}`;
-  document.getElementById('sub-abx-fields').classList.toggle('hidden', drug.formType !== 'antibiotic_culture');
+  const isAbx = drug.formType === 'antibiotic_culture';
+  document.getElementById('sub-abx-fields').classList.toggle('hidden', !isAbx);
+  document.getElementById('sub-renal-box').classList.toggle('hidden', !isAbx);
   renderCriteria(drug);
 });
+
+document.getElementById('sub-cultureSpecimenType').addEventListener('change', e=>{
+  document.getElementById('sub-cultureSpecimenOther-wrap').classList.toggle('hidden', e.target.value !== '__other__');
+});
+
+// ---- Ceftazidime renal dosing reference (คำนวณตาม CrCl ที่กรอก, โชว์ตารางเต็มไว้เสมอ + ไฮไลต์ช่วงที่ตรง) ----
+const CEFTAZ_RENAL_TIERS = [
+  {min:50, max:Infinity, label:'ปกติ (CrCl ≥ 50 mL/min)', text:'1-2 กรัม ทุก 8 ชม. (severe และ MDR: 2 กรัม ทุก 8 ชม.)'},
+  {min:30, max:50, label:'CrCl 30-50 mL/min', text:'1-2 กรัม ทุก 12 ชม.'},
+  {min:16, max:30, label:'CrCl 16-30 mL/min', text:'1-2 กรัม ทุก 24 ชม.'},
+  {min:6, max:16, label:'CrCl 6-15 mL/min', text:'0.5-1 กรัม ทุก 24 ชม.'},
+  {min:0, max:6, label:'CrCl < 6 mL/min', text:'0.5 กรัม ทุก 24 ชม.'}
+];
+function renderRenalNote(){
+  const crClVal = document.getElementById('sub-crCl').value;
+  const crCl = crClVal === '' ? null : Number(crClVal);
+  const lines = CEFTAZ_RENAL_TIERS.map(t=>{
+    const match = crCl !== null && crCl >= t.min && crCl < t.max;
+    const style = match ? 'color:var(--teal-deep);font-weight:700;' : '';
+    const marker = match ? '👉 ' : '';
+    return `<div style="${style}">${marker}${escapeHtml(t.label)}: ${escapeHtml(t.text)}</div>`;
+  }).join('');
+  document.getElementById('sub-renal-note').innerHTML = lines +
+    `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">Hemodialysis: 0.5-1 กรัม ทุก 24 ชม. ให้หลังฟอกไตในวันที่ฟอกไต</div>`;
+}
+document.getElementById('sub-crCl').addEventListener('input', renderRenalNote);
+renderRenalNote();
 
 function renderCriteria(drug){
   const container = document.getElementById('sub-criteria-container');
@@ -424,11 +493,14 @@ document.getElementById('btn-submit-due').addEventListener('click', ()=>{
     entry.rightsType = document.getElementById('sub-rightsType').value;
     entry.department = document.getElementById('sub-department').value;
     entry.cultureSent = document.getElementById('sub-cultureSent').value;
-    entry.cultureSpecimenType = document.getElementById('sub-cultureSpecimenType').value.trim();
+    let specimenType = document.getElementById('sub-cultureSpecimenType').value;
+    if(specimenType === '__other__') specimenType = document.getElementById('sub-cultureSpecimenOther').value.trim();
+    entry.cultureSpecimenType = specimenType;
     entry.pathogenKnown = document.getElementById('sub-pathogenKnown').value;
     entry.pathogenName = document.getElementById('sub-pathogenName').value.trim();
     entry.infectionSource = document.getElementById('sub-infectionSource').value;
     entry.durationDays = document.getElementById('sub-durationDays').value;
+    entry.crCl = document.getElementById('sub-crCl').value;
     // อนุมาน indicationStage จากเกณฑ์ที่เลือก (1.x = empiric, 2.x = document)
     entry.indicationStage = selected.some(id => id === '1' || id.startsWith('1.')) ? 'empiric' : 'document';
   }
@@ -445,8 +517,10 @@ document.getElementById('btn-submit-due').addEventListener('click', ()=>{
       document.getElementById('sub-drug').value = '';
       document.getElementById('sub-form-card').classList.add('hidden');
       ['sub-patientName','sub-age','sub-hn','sub-an','sub-ward','sub-diagnosis','sub-underlyingDisease','sub-doseUsed',
-       'sub-prescriberName','sub-prescriberLicense','sub-cultureSpecimenType','sub-pathogenName','sub-durationDays']
+       'sub-prescriberLicense','sub-cultureSpecimenOther','sub-pathogenName','sub-durationDays','sub-crCl']
         .forEach(id => document.getElementById(id).value = '');
+      document.getElementById('sub-prescriberName').value = '';
+      renderRenalNote();
       loadReviewLists();
     }).catch(e=>{ msg.className='msg error'; msg.textContent='บันทึกไม่สำเร็จ: '+e.message; })
     .finally(()=>{ btn.disabled=false; btn.textContent='บันทึกยืนยันการสั่งจ่าย'; });
